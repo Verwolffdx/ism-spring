@@ -1,12 +1,14 @@
 package com.edatwhite.smkd.entity;
 
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 public class DivisionDTO {
     private Long division_id;
     private String division_name;
-    private Set<DivisionDTO> children;
+    private List<DivisionDTO> children;
 
     public DivisionDTO() {
     }
@@ -14,10 +16,10 @@ public class DivisionDTO {
     public DivisionDTO(Long division_id, String division_name) {
         this.division_id = division_id;
         this.division_name = division_name;
-        this.children = new HashSet<>();
+        this.children = new ArrayList<>();
     }
 
-    public DivisionDTO(Long division_id, String division_name, Set<DivisionDTO> children) {
+    public DivisionDTO(Long division_id, String division_name, List<DivisionDTO> children) {
         this.division_id = division_id;
         this.division_name = division_name;
         this.children = children;
@@ -39,11 +41,11 @@ public class DivisionDTO {
         this.division_name = division_name;
     }
 
-    public Set<DivisionDTO> getChildren() {
+    public List<DivisionDTO> getChildren() {
         return children;
     }
 
-    public void setChildren(Set<DivisionDTO> children) {
+    public void setChildren(List<DivisionDTO> children) {
         this.children = children;
 
     }

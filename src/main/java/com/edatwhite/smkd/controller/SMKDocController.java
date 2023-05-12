@@ -111,12 +111,14 @@ public class SMKDocController {
 //        }
 //    }
 
-//    @GetMapping("/divisions")
-//    @PreAuthorize("")
-//    public List<DivisionDTO> getDivisions() {
-//        List<DivisionDTO> divisionsDTO = new ArrayList<>();
-//        List<Division> divisionList = divisionRepository.findAll();
-//
+
+
+    @GetMapping("/divisions")
+    @PreAuthorize("hasRole('USER')")
+    public List<DivisionDTO> getDivisions() {
+        List<DivisionDTO> divisionsDTO = new ArrayList<>();
+        List<Division> divisionList = divisionRepository.findAll();
+
 //        for (Division d : divisionList) {
 //            if (d.getParent_id() == null) {
 //                divisionsDTO.add(new DivisionDTO(d.getDivision_id(), d.getDivision_name()));
@@ -128,9 +130,52 @@ public class SMKDocController {
 //                }
 //            }
 //        }
-//
-//        return divisionsDTO;
-//    }
+
+        for (Division d : divisionList)
+            System.out.println(d.getDivision_id());
+
+        order(divisionList, divisionsDTO);
+
+        for (DivisionDTO d : divisionsDTO) {
+            System.out.println(d.getDivision_id());
+            for (DivisionDTO div : d.getChildren()) {
+                System.out.println(div.getDivision_id());
+                for (DivisionDTO div2 : div.getChildren())
+                    System.out.println(div2.getDivision_id());
+            }
+        }
+
+        return divisionsDTO;
+    }
+
+    private static void order(List<Division> divisions, List<DivisionDTO> divisionsJSON) {
+
+        for (Division d : divisions) {
+            recursiveOrder(divisions, divisionsJSON, d);
+        }
+    }
+
+    private static void recursiveOrder(List<Division> divisions, List<DivisionDTO> divisionsJSON, Division d) {
+
+        System.out.println("D " + d.getDivision_id() + " " + d.getParent_id());
+        if (divisionsJSON.stream().anyMatch(div -> div.getDivision_id() == d.getParent_id())) {
+            DivisionDTO division = divisionsJSON.stream()
+                    .filter(div -> d.getParent_id() == div.getDivision_id())
+                    .findAny().orElse(null);
+            division.addChild(new DivisionDTO(d.getDivision_id(), d.getDivision_name(), new ArrayList<>()));
+
+        } else if (d.getParent_id() == null || d.getParent_id().equals(null)) {
+            System.out.println(d.getDivision_id() + " is parent");
+            divisionsJSON.add(new DivisionDTO(d.getDivision_id(), d.getDivision_name(), new ArrayList<>()));
+        } else {
+            for (DivisionDTO divisionJSON : divisionsJSON) {
+
+                recursiveOrder(divisions.subList(divisions.indexOf(d), divisions.size()), divisionJSON.getChildren(), d);
+            }
+        }
+    }
+
+
 
 //    private void findChild(Division division, List<DivisionDTO> divisionsDTO) {
 //        for (DivisionDTO dto : divisionsDTO) {

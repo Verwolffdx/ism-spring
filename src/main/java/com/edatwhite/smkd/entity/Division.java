@@ -18,7 +18,8 @@ public class Division {
     public Division(Long division_id, String division_name, Long parent_id) {
         this.division_id = division_id;
         this.division_name = division_name;
-        this.parent_id = parent_id;
+        this.parent_id = parent_id == null ? 0 : parent_id;
+
     }
 
     public Long getDivision_id() {
