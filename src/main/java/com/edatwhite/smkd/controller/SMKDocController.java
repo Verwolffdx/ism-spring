@@ -81,6 +81,8 @@ public class SMKDocController {
             Parser parser = new Parser(file.getOriginalFilename());
             content = parser.parse();
 
+            storageService.delete(file.getOriginalFilename());
+
 //            message = "Uploaded the file successfully: " + file.getOriginalFilename();
 //            return ResponseEntity.status(HttpStatus.OK).body(new ResponseMessage(message));
         } catch (Exception e) {
