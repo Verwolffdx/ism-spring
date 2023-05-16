@@ -116,16 +116,16 @@ public class Parser {
             }
             if (isChapterTitle(paragraph)) {
                 title = s;
-                ch = new Content(title, new ArrayList<>());
+                ch = new Content(content.size() ,title, new ArrayList<>());
                 content.add(ch);
             } else {
                 if (!isChapterTitle(paragraph) && !paragraph.text().equals("\r")) {
                     if (ch != null)
-                        ch.addChapter(s);
+                        ch.addChapter(s + "\n");
                     else {
                         System.out.println(s);
-                        ch = new Content("Название главы отсутсвует", new ArrayList<>());
-                        ch.addChapter(s);
+                        ch = new Content(content.size() ,"Название главы отсутсвует", new ArrayList<>());
+                        ch.addChapter(s + "\n");
                         content.add(ch);
                     }
                 }

@@ -1,5 +1,7 @@
 package com.edatwhite.smkd.entity;
 
+import com.edatwhite.smkd.entity.smkdocument.RelationalDocument;
+
 import javax.persistence.*;
 import java.util.HashSet;
 import java.util.Set;
@@ -28,6 +30,13 @@ public class Users {
             joinColumns = @JoinColumn(name = "user_id"),
             inverseJoinColumns = @JoinColumn(name = "division_id"))
     private Set<Division> divisions = new HashSet<>();
+
+    // "favorites"
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(name = "favorites",
+            joinColumns = @JoinColumn(name = "user_id"),
+            inverseJoinColumns = @JoinColumn(name = "document_id"))
+    private Set<RelationalDocument> favorites = new HashSet<>();
 
     public Users() {
     }
@@ -84,5 +93,17 @@ public class Users {
 
     public void setDivisions(Set<Division> divisions) {
         this.divisions = divisions;
+    }
+
+    public Set<RelationalDocument> getFavorites() {
+        return favorites;
+    }
+
+    public void setFavorites(Set<RelationalDocument> favorites) {
+        this.favorites = favorites;
+    }
+
+    public void addFavorite(RelationalDocument favorite) {
+        this.favorites.add(favorite);
     }
 }

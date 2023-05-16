@@ -6,15 +6,30 @@ import java.util.List;
 
 public class Content {
 
+    private int id;
     private String chapter_title;
     private List<String> chapter;
 
     public Content() {
     }
 
+    public Content(int id, String chapter_title, List<String> chapter) {
+        this.id = id;
+        this.chapter_title = chapter_title;
+        this.chapter = chapter;
+    }
+
     public Content(String chapter_title, List<String> chapter) {
         this.chapter_title = chapter_title;
         this.chapter = chapter;
+    }
+
+    public int getId() {
+        return id;
+    }
+
+    public void setId(int id) {
+        this.id = id;
     }
 
     public String getChapter_title() {

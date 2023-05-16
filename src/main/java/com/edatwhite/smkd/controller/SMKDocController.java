@@ -2,10 +2,17 @@ package com.edatwhite.smkd.controller;
 
 import com.edatwhite.smkd.entity.Division;
 import com.edatwhite.smkd.entity.DivisionDTO;
+import com.edatwhite.smkd.entity.Favorites;
+import com.edatwhite.smkd.entity.Users;
 import com.edatwhite.smkd.entity.smkdocument.Content;
 import com.edatwhite.smkd.entity.smkdocument.Parser;
+import com.edatwhite.smkd.entity.smkdocument.RelationalDocument;
 import com.edatwhite.smkd.message.ResponseMessage;
+import com.edatwhite.smkd.payload.response.MessageResponse;
 import com.edatwhite.smkd.repository.DivisionRepository;
+
+import com.edatwhite.smkd.repository.RelationalDocumentRepository;
+import com.edatwhite.smkd.repository.UserRepository;
 import com.edatwhite.smkd.service.document.SMKDocService;
 import com.edatwhite.smkd.entity.smkdocument.SMKDoc;
 import com.edatwhite.smkd.service.file.FilesStorageService;
@@ -30,6 +37,12 @@ public class SMKDocController {
     @Autowired
     DivisionRepository divisionRepository;
 
+    @Autowired
+    UserRepository userRepository;
+
+    @Autowired
+    RelationalDocumentRepository relationalDocumentRepository;
+
     private final SMKDocService service;
 
     @Autowired
@@ -49,25 +62,42 @@ public class SMKDocController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasRole('USER')")
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
     public Optional<SMKDoc> findById(@PathVariable String id) {
         return service.findById(id);
     }
 
     @GetMapping("/all")
-    @PreAuthorize("hasRole('USER')")
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
     public List<SMKDoc> findAllDocuments() {
         return service.findAllDocuments();
     }
 
     @GetMapping("/find")
-    @PreAuthorize("hasRole('USER')")
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
     public List<SearchHit<SMKDoc>> findDocument(@RequestParam String value) {
         return service.findDocument(value);
     }
 
+    @PostMapping("/addfavorites")
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
+    public ResponseEntity<ResponseMessage> addToFavorites(@RequestBody final Favorites favorites) {
+        try {
+            Users user = userRepository.findById(favorites.getUser_id()).get();
+            RelationalDocument document = relationalDocumentRepository.findById(favorites.getDocument_id()).get();
+            user.addFavorite(document);
+            userRepository.save(user);
+            String message = "The document has been successfully added to favorites!";
+            return ResponseEntity.status(HttpStatus.OK).body(new ResponseMessage(message));
+        } catch (Exception e) {
+            String message = "Error when trying to add to favorites " + e.getMessage();
+            return ResponseEntity.status(HttpStatus.EXPECTATION_FAILED).body(new ResponseMessage(message));
+        }
+
+    }
+
     @PostMapping("/parsefile")
-    @PreAuthorize("hasRole('USER')")
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
     public List<Content> parseDocument(@RequestParam("file") MultipartFile file) {
         List<Content> content = new ArrayList<>();
         try {
@@ -116,7 +146,7 @@ public class SMKDocController {
 
 
     @GetMapping("/divisions")
-    @PreAuthorize("hasRole('USER')")
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
     public List<DivisionDTO> getDivisions() {
         List<DivisionDTO> divisionsDTO = new ArrayList<>();
         List<Division> divisionList = divisionRepository.findAll();
