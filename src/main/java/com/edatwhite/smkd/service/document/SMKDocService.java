@@ -23,6 +23,7 @@ public class SMKDocService {
 
     public void save(final SMKDoc smkDoc) {
         repository.save(smkDoc);
+
     }
 
 //    public SMKDocument findById(final String id) {

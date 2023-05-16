@@ -1,23 +1,16 @@
-package com.edatwhite.smkd.entity;
+package com.edatwhite.smkd.payload.request;
 
-import javax.persistence.Embeddable;
-import javax.persistence.Entity;
-import javax.persistence.Id;
-
-//@Embeddable
-public class Favorites {
-
-
+public class DocumentIdRequest {
     private String document_id;
-
-
+    private String value;
     private Long user_id;
 
-    public Favorites() {
+    public DocumentIdRequest() {
     }
 
-    public Favorites(String document_id, Long user_id) {
+    public DocumentIdRequest(String document_id, String value, Long user_id) {
         this.document_id = document_id;
+        this.value = value;
         this.user_id = user_id;
     }
 
@@ -27,6 +20,14 @@ public class Favorites {
 
     public void setDocument_id(String document_id) {
         this.document_id = document_id;
+    }
+
+    public String getValue() {
+        return value;
+    }
+
+    public void setValue(String value) {
+        this.value = value;
     }
 
     public Long getUser_id() {

@@ -1,17 +1,17 @@
 package com.edatwhite.smkd.controller;
 
-import com.edatwhite.smkd.entity.Division;
-import com.edatwhite.smkd.entity.DivisionDTO;
-import com.edatwhite.smkd.entity.Favorites;
-import com.edatwhite.smkd.entity.Users;
+import com.edatwhite.smkd.entity.*;
 import com.edatwhite.smkd.entity.smkdocument.Content;
 import com.edatwhite.smkd.entity.smkdocument.Parser;
 import com.edatwhite.smkd.entity.smkdocument.RelationalDocument;
 import com.edatwhite.smkd.message.ResponseMessage;
+import com.edatwhite.smkd.payload.request.DocumentIdRequest;
+import com.edatwhite.smkd.payload.request.SearchRequest;
 import com.edatwhite.smkd.payload.response.MessageResponse;
 import com.edatwhite.smkd.repository.DivisionRepository;
 
 import com.edatwhite.smkd.repository.RelationalDocumentRepository;
+import com.edatwhite.smkd.repository.SMKDocRepository;
 import com.edatwhite.smkd.repository.UserRepository;
 import com.edatwhite.smkd.service.document.SMKDocService;
 import com.edatwhite.smkd.entity.smkdocument.SMKDoc;
@@ -43,6 +43,10 @@ public class SMKDocController {
     @Autowired
     RelationalDocumentRepository relationalDocumentRepository;
 
+    @Autowired
+    SMKDocRepository smkDocRepository;
+
+
     private final SMKDocService service;
 
     @Autowired
@@ -61,10 +65,37 @@ public class SMKDocController {
         }
     }
 
+//    @GetMapping("/{id}")
+//    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
+//    public Optional<SMKDoc> findById(@PathVariable String id) {
+//        return service.findById(id);
+//    }
+
     @GetMapping("/{id}")
     @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
-    public Optional<SMKDoc> findById(@PathVariable String id) {
-        return service.findById(id);
+    public DocumentDTO findByIdWithValue(@RequestBody DocumentIdRequest documentIdRequest) {
+        SearchHit<SMKDoc> ESDocument = smkDocRepository.findByIdNested(documentIdRequest.getValue(), documentIdRequest.getDocument_id()).get(0);
+
+        SMKDoc doc = (SMKDoc) ESDocument.getContent();
+        DocumentDTO documentDTO = new DocumentDTO(
+                doc.getId(),
+                doc.getName(),
+                doc.getCode(),
+                doc.getVersion(),
+                doc.getDate(),
+                doc.getContent(),
+                doc.getAppendix(),
+                doc.getLinks(),
+                doc.getApproval_sheet(),
+                ESDocument.getHighlightFields()
+        );
+
+        Users user = userRepository.findById(documentIdRequest.getUser_id()).get();
+        if (user.getFavorites().stream().anyMatch(fav -> fav.getDocument_id().equals(doc.getId()))) {
+            documentDTO.setFavorite(true);
+        }
+
+        return documentDTO;
     }
 
     @GetMapping("/all")
@@ -73,10 +104,42 @@ public class SMKDocController {
         return service.findAllDocuments();
     }
 
-    @GetMapping("/find")
+    @PostMapping("/find")
     @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
-    public List<SearchHit<SMKDoc>> findDocument(@RequestParam String value) {
-        return service.findDocument(value);
+    public List<DocumentDTO> findDocument(@RequestBody SearchRequest searchRequest) {
+//        return service.findDocument(value);
+        List<SearchHit<SMKDoc>> ESDocuments = smkDocRepository.findDocumentNested(searchRequest.getSearch_value());
+
+        Users user = userRepository.findById(searchRequest.getUser_id()).get();
+
+        List<DocumentDTO> documentsDTO = new ArrayList<>();
+
+        for (SearchHit s : ESDocuments) {
+            SMKDoc doc = (SMKDoc) s.getContent();
+            DocumentDTO documentDTO = new DocumentDTO(
+                    doc.getId(),
+                    doc.getName(),
+                    doc.getCode(),
+                    doc.getVersion(),
+                    doc.getDate(),
+                    doc.getContent(),
+                    doc.getAppendix(),
+                    doc.getLinks(),
+                    doc.getApproval_sheet(),
+                    s.getHighlightFields()
+            );
+
+
+            if (user.getFavorites().stream().anyMatch(fav -> fav.getDocument_id().equals(doc.getId()))) {
+                documentDTO.setFavorite(true);
+            }
+
+            documentsDTO.add(documentDTO);
+        }
+
+
+
+        return documentsDTO;
     }
 
     @PostMapping("/addfavorites")
@@ -93,7 +156,22 @@ public class SMKDocController {
             String message = "Error when trying to add to favorites " + e.getMessage();
             return ResponseEntity.status(HttpStatus.EXPECTATION_FAILED).body(new ResponseMessage(message));
         }
+    }
 
+    @PostMapping("/deletefavorites")
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
+    public ResponseEntity<ResponseMessage> deleteFromFavorites(@RequestBody final Favorites favorites) {
+        try {
+            Users user = userRepository.findById(favorites.getUser_id()).get();
+            RelationalDocument document = relationalDocumentRepository.findById(favorites.getDocument_id()).get();
+            user.deleteFavorite(document);
+            userRepository.save(user);
+            String message = "Document successfully removed from favorites!";
+            return ResponseEntity.status(HttpStatus.OK).body(new ResponseMessage(message));
+        } catch (Exception e) {
+            String message = "Error when trying to remove from favorites " + e.getMessage();
+            return ResponseEntity.status(HttpStatus.EXPECTATION_FAILED).body(new ResponseMessage(message));
+        }
     }
 
     @PostMapping("/parsefile")

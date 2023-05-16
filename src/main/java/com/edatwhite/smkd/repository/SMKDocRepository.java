@@ -93,4 +93,64 @@ public interface SMKDocRepository extends ElasticsearchRepository<SMKDoc, String
             )
     )
     List<SearchHit<SMKDoc>> findDocumentNested(String value);
+
+    @Query("{" +
+            "\"bool\": {" +
+            "\"must\": [" +
+            "{" +
+            " \"nested\": {" +
+            "\"path\": \"content\"," +
+            "\"query\": {" +
+            " \"bool\": {" +
+            "            \"filter\": [" +
+            "                {" +
+            "                    \"term\": {" +
+            "                        \"_id\": \"?1\"" +
+            "                    }" +
+            "                }" +
+            "            ]," +
+            "\"must\": [" +
+            "{" +
+            "\"multi_match\": {" +
+            " \"query\": \"?0\"," +
+            "\"fields\": [" +
+            "\"content.chapter_title\"," +
+            "\"content.chapter\"" +
+            "]" +
+            "}" +
+            "}" +
+            "]" +
+            "}" +
+            "}" +
+            "}" +
+            "}," +
+            "{" +
+            "\"multi_match\": {" +
+            "\"query\": \"?0\"," +
+            "\"fields\": [" +
+            "\"code\"," +
+            "\"name\"," +
+            "\"appendix\"" +
+            "]" +
+            "}" +
+            "}" +
+            "]" +
+            "}" +
+            "}")
+    @Highlight(
+            fields = {
+                    @HighlightField(name = "code"),
+                    @HighlightField(name = "name"),
+                    @HighlightField(name = "content.chapter_title"),
+                    @HighlightField(name = "content.chapter"),
+                    @HighlightField(name = "appendix"),
+            },
+            parameters = @HighlightParameters(
+                    preTags = "<strong>",
+                    postTags = "</strong>",
+                    fragmentSize = 500,
+                    numberOfFragments = 3
+            )
+    )
+    List<SearchHit<SMKDoc>> findByIdNested(String value, String id);
 }

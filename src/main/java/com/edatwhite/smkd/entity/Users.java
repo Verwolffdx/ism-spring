@@ -106,4 +106,8 @@ public class Users {
     public void addFavorite(RelationalDocument favorite) {
         this.favorites.add(favorite);
     }
+
+    public void deleteFavorite(RelationalDocument favorite) {
+        this.favorites.remove(favorite);
+    }
 }
