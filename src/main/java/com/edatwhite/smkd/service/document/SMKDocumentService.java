@@ -1,6 +1,5 @@
 package com.edatwhite.smkd.service.document;
 
-import com.edatwhite.smkd.repository.SMKDocumentRepository;
 import com.edatwhite.smkd.entity.smkdocument.SMKDocument;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.elasticsearch.core.SearchHit;
@@ -9,39 +8,39 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.Optional;
 
-@Service
+//@Service
 public class SMKDocumentService {
 
-    @Autowired
-    SMKDocumentRepository repository;
-
-    private final String indexName = "nir_index";
-
-    @Autowired
-    public SMKDocumentService(SMKDocumentRepository repository) {
-        this.repository = repository;
-    }
-
-    public void save(final SMKDocument smkDocument) {
-        repository.save(smkDocument);
-    }
-
-//    public SMKDocument findById(final String id) {
-//        return repository.findById(id).orElse(null);
+//    @Autowired
+//    SMKDocumentRepository repository;
+//
+//    private final String indexName = "nir_index";
+//
+//    @Autowired
+//    public SMKDocumentService(SMKDocumentRepository repository) {
+//        this.repository = repository;
 //    }
-
-    public Optional<SMKDocument> findById(final String id) {
-        return repository.findById(id);
-    }
-
-    public List<SMKDocument> findAllDocuments() {
-        return repository.findAllDocuments();
-    }
-
-    //New
-    public List<SearchHit<SMKDocument>> findDocument(String value) {
-        return repository.findDocument(value);
-    }
+//
+//    public void save(final SMKDocument smkDocument) {
+//        repository.save(smkDocument);
+//    }
+//
+////    public SMKDocument findById(final String id) {
+////        return repository.findById(id).orElse(null);
+////    }
+//
+//    public Optional<SMKDocument> findById(final String id) {
+//        return repository.findById(id);
+//    }
+//
+//    public List<SMKDocument> findAllDocuments() {
+//        return repository.findAllDocuments();
+//    }
+//
+//    //New
+//    public List<SearchHit<SMKDocument>> findDocument(String value) {
+//        return repository.findDocument(value);
+//    }
 
     //Old
 //    public List<SearchHit<SMKDocument>> findDocument(String field, String value) {

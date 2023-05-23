@@ -16,11 +16,18 @@ public class RelationalDocument {
     public RelationalDocument() {
     }
 
-    public RelationalDocument(String document_code, String document_name, String document_path) {
+    public RelationalDocument(String document_id, String document_code, String document_name) {
+        this.document_id = document_id;
         this.document_code = document_code;
         this.document_name = document_name;
-        this.document_path = document_path;
+        this.document_path = "/";
     }
+
+    //    public RelationalDocument(String document_code, String document_name, String document_path) {
+//        this.document_code = document_code;
+//        this.document_name = document_name;
+//        this.document_path = document_path;
+//    }
 
     public RelationalDocument(String document_id, String document_code, String document_name, String document_path) {
         this.document_id = document_id;

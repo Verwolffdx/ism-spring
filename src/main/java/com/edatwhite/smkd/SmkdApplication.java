@@ -12,6 +12,7 @@ import javax.annotation.Resource;
 
 @SpringBootApplication
 public class SmkdApplication implements CommandLineRunner {
+
 	@Resource
 	FilesStorageService storageService;
 

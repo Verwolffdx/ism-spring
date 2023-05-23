@@ -37,6 +37,18 @@ public class DocumentDTO {
     public DocumentDTO() {
     }
 
+    public DocumentDTO(String id, String name, String code, String version, String date, List<Content> content, List<String> appendix, List<Links> links, List<ApprovalSheet> approval_sheet) {
+        this.id = id;
+        this.name = name;
+        this.code = code;
+        this.version = version;
+        this.date = date;
+        this.content = content;
+        this.appendix = appendix;
+        this.links = links;
+        this.approval_sheet = approval_sheet;
+    }
+
     public DocumentDTO(String id, String name, String code, String version, String date, List<Content> content, List<String> appendix, List<Links> links, List<ApprovalSheet> approval_sheet, Map<String, List<String>> highlightFields) {
         this.id = id;
         this.name = name;

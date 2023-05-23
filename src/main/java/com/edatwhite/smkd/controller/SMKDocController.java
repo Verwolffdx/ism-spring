@@ -11,20 +11,18 @@ import com.edatwhite.smkd.payload.response.MessageResponse;
 import com.edatwhite.smkd.repository.DivisionRepository;
 
 import com.edatwhite.smkd.repository.RelationalDocumentRepository;
-import com.edatwhite.smkd.repository.SMKDocRepository;
 import com.edatwhite.smkd.repository.UserRepository;
-import com.edatwhite.smkd.service.document.SMKDocService;
+import com.edatwhite.smkd.service.document.ESQuery;
 import com.edatwhite.smkd.entity.smkdocument.SMKDoc;
 import com.edatwhite.smkd.service.file.FilesStorageService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.elasticsearch.core.SearchHit;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.*;
 
 @RestController
@@ -43,26 +41,68 @@ public class SMKDocController {
     @Autowired
     RelationalDocumentRepository relationalDocumentRepository;
 
-    @Autowired
-    SMKDocRepository smkDocRepository;
-
-
-    private final SMKDocService service;
+//    @Autowired
+//    SMKDocRepository smkDocRepository;
 
     @Autowired
-    public SMKDocController(SMKDocService service) {
-        this.service = service;
-    }
+    private ESQuery esQuery;
+
+
+//    private final SMKDocService service;
+
+//    @Autowired
+//    public SMKDocController(SMKDocService service) {
+//        this.service = service;
+//    }
 
     @PostMapping("/create")
     @PreAuthorize("hasRole('ADMIN')")
-    public void save(@RequestBody final SMKDoc smkDoc) {
+    public ResponseEntity<ResponseMessage> save(@RequestBody final SMKDoc smkDoc) {
         System.out.println(smkDoc.toString());
         try {
-            service.save(smkDoc);
+            SMKDoc doc = new SMKDoc(
+                    smkDoc.getName(),
+                    smkDoc.getCode(),
+                    smkDoc.getVersion(),
+                    smkDoc.getDate(),
+                    smkDoc.getContent(),
+                    smkDoc.getAppendix(),
+                    smkDoc.getLinks(),
+                    smkDoc.getApproval_sheet()
+
+            );
+//            System.out.println("ID = " + doc.getId());
+//            smkDocRepository.save(doc);
+//            service.save(smkDoc);
+            esQuery.createOrUpdateDocument(doc);
+            relationalDocumentRepository.save(new RelationalDocument(doc.getId().toString(), smkDoc.getCode(), smkDoc.getName()));
+
+            String message = "The document has been successfully created! ";
+            String document_id = doc.getId();
+            System.out.println(message);
+            return ResponseEntity.status(HttpStatus.OK).body(new ResponseMessage(message, document_id));
         } catch (Exception e) {
+            String message = "Error when trying to create document " + e.getMessage();
             System.out.println(e);
+            return ResponseEntity.status(HttpStatus.EXPECTATION_FAILED).body(new ResponseMessage(message));
         }
+    }
+
+    @GetMapping("/favorites/{user_id}")
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
+    public Set<RelationalDocument> getFavorites(@PathVariable String user_id ) {
+        System.out.println(user_id);
+        Users user = userRepository.findById(Long.parseLong(user_id)).get();
+
+        return user.getFavorites();
+    }
+
+    @DeleteMapping("/deleteDocument")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Object> deleteDocumentById(@RequestParam String id) throws IOException {
+        String response =  esQuery.deleteDocumentById(id);
+        relationalDocumentRepository.deleteById(id);
+        return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
 //    @GetMapping("/{id}")
@@ -71,53 +111,17 @@ public class SMKDocController {
 //        return service.findById(id);
 //    }
 
-    @GetMapping("/{id}")
+    @PostMapping("/document")
     @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
-    public DocumentDTO findByIdWithValue(@RequestBody DocumentIdRequest documentIdRequest) {
-        SearchHit<SMKDoc> ESDocument = smkDocRepository.findByIdNested(documentIdRequest.getValue(), documentIdRequest.getDocument_id()).get(0);
+    public DocumentDTO findByIdWithValue(@RequestBody DocumentIdRequest documentIdRequest) throws IOException {
+//        SearchHit<SMKDoc> ESDocument = null;
 
-        SMKDoc doc = (SMKDoc) ESDocument.getContent();
-        DocumentDTO documentDTO = new DocumentDTO(
-                doc.getId(),
-                doc.getName(),
-                doc.getCode(),
-                doc.getVersion(),
-                doc.getDate(),
-                doc.getContent(),
-                doc.getAppendix(),
-                doc.getLinks(),
-                doc.getApproval_sheet(),
-                ESDocument.getHighlightFields()
-        );
-
-        Users user = userRepository.findById(documentIdRequest.getUser_id()).get();
-        if (user.getFavorites().stream().anyMatch(fav -> fav.getDocument_id().equals(doc.getId()))) {
-            documentDTO.setFavorite(true);
-        }
-
-        return documentDTO;
-    }
-
-    @GetMapping("/all")
-    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
-    public List<SMKDoc> findAllDocuments() {
-        return service.findAllDocuments();
-    }
-
-    @PostMapping("/find")
-    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
-    public List<DocumentDTO> findDocument(@RequestBody SearchRequest searchRequest) {
-//        return service.findDocument(value);
-        List<SearchHit<SMKDoc>> ESDocuments = smkDocRepository.findDocumentNested(searchRequest.getSearch_value());
-
-        Users user = userRepository.findById(searchRequest.getUser_id()).get();
-
-        List<DocumentDTO> documentsDTO = new ArrayList<>();
-
-        for (SearchHit s : ESDocuments) {
-            SMKDoc doc = (SMKDoc) s.getContent();
+//        if (documentIdRequest.getValue() == null || documentIdRequest.getValue().isEmpty()) {
+//            Optional<SMKDoc> ESDocument = smkDocRepository.findById(documentIdRequest.getDocument_id());
+//            SMKDoc doc = (SMKDoc) ESDocument.get();
+            SMKDoc doc = esQuery.getDocumentById(documentIdRequest.getDocument_id());
             DocumentDTO documentDTO = new DocumentDTO(
-                    doc.getId(),
+                    doc.getId().toString(),
                     doc.getName(),
                     doc.getCode(),
                     doc.getVersion(),
@@ -125,21 +129,71 @@ public class SMKDocController {
                     doc.getContent(),
                     doc.getAppendix(),
                     doc.getLinks(),
-                    doc.getApproval_sheet(),
-                    s.getHighlightFields()
+                    doc.getApproval_sheet()
             );
 
-
+            Users user = userRepository.findById(documentIdRequest.getUser_id()).get();
             if (user.getFavorites().stream().anyMatch(fav -> fav.getDocument_id().equals(doc.getId()))) {
                 documentDTO.setFavorite(true);
             }
 
-            documentsDTO.add(documentDTO);
+            return documentDTO;
+//        } else {
+//            SearchHit<SMKDoc> ESDocument = smkDocRepository.findByIdNested(documentIdRequest.getValue(), documentIdRequest.getDocument_id()).get(0);
+//
+//            SMKDoc doc = (SMKDoc) ESDocument.getContent();
+//            DocumentDTO documentDTO = new DocumentDTO(
+//                    doc.getId().toString(),
+//                    doc.getName(),
+//                    doc.getCode(),
+//                    doc.getVersion(),
+//                    doc.getDate(),
+//                    doc.getContent(),
+//                    doc.getAppendix(),
+//                    doc.getLinks(),
+//                    doc.getApproval_sheet(),
+//                    ESDocument.getHighlightFields()
+//            );
+//
+//            Users user = userRepository.findById(documentIdRequest.getUser_id()).get();
+//            if (user.getFavorites().stream().anyMatch(fav -> fav.getDocument_id().equals(doc.getId()))) {
+//                documentDTO.setFavorite(true);
+//            }
+//
+//            return documentDTO;
+//        }
+
+    }
+
+    @GetMapping("/all")
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
+    public List<SMKDoc> findAllDocuments() throws IOException {
+        return esQuery.searchAllDocuments();
+    }
+
+    @PostMapping("/find")
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
+    public List<DocumentDTO> findDocument(@RequestBody SearchRequest searchRequest) throws IOException {
+//        return service.findDocument(value);
+//        List<SearchHit<SMKDoc>> ESDocuments = smkDocRepository.findDocumentNested(searchRequest.getSearch_value());
+        List<DocumentDTO> documents = esQuery.searchDocument(searchRequest.getSearch_value());
+
+        Users user = userRepository.findById(searchRequest.getUser_id()).get();
+
+//        List<DocumentDTO> documentsDTO = new ArrayList<>();
+
+        for (DocumentDTO s : documents) {
+
+            if (user.getFavorites().stream().anyMatch(fav -> fav.getDocument_id().equals(s.getId()))) {
+                s.setFavorite(true);
+            }
+
+
         }
 
 
 
-        return documentsDTO;
+        return documents;
     }
 
     @PostMapping("/addfavorites")
