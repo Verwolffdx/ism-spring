@@ -32,7 +32,9 @@ public class DocumentDTO {
 
     private Map<String, List<String>> highlightFields;
 
-    private boolean isFavorite;
+    private boolean isFavorite = false;
+
+    private boolean isFamiliarize;
 
     public DocumentDTO() {
     }
@@ -60,6 +62,35 @@ public class DocumentDTO {
         this.links = links;
         this.approval_sheet = approval_sheet;
         this.highlightFields = highlightFields;
+    }
+
+    public DocumentDTO(String id, String name, String code, String version, String date, List<Content> content, List<String> appendix, List<Links> links, List<ApprovalSheet> approval_sheet, boolean isFavorite, boolean isFamiliarize) {
+        this.id = id;
+        this.name = name;
+        this.code = code;
+        this.version = version;
+        this.date = date;
+        this.content = content;
+        this.appendix = appendix;
+        this.links = links;
+        this.approval_sheet = approval_sheet;
+        this.isFavorite = isFavorite;
+        this.isFamiliarize = isFamiliarize;
+    }
+
+    public DocumentDTO(String id, String name, String code, String version, String date, List<Content> content, List<String> appendix, List<Links> links, List<ApprovalSheet> approval_sheet, Map<String, List<String>> highlightFields, boolean isFavorite, boolean isFamiliarize) {
+        this.id = id;
+        this.name = name;
+        this.code = code;
+        this.version = version;
+        this.date = date;
+        this.content = content;
+        this.appendix = appendix;
+        this.links = links;
+        this.approval_sheet = approval_sheet;
+        this.highlightFields = highlightFields;
+        this.isFavorite = isFavorite;
+        this.isFamiliarize = isFamiliarize;
     }
 
     public String getId() {
@@ -149,4 +180,14 @@ public class DocumentDTO {
     public void setFavorite(boolean favorite) {
         isFavorite = favorite;
     }
+
+    public boolean isFamiliarize() {
+        return isFamiliarize;
+    }
+
+    public void setFamiliarize(boolean familiarize) {
+        isFamiliarize = familiarize;
+    }
+
+
 }

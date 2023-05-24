@@ -10,6 +10,7 @@ import com.edatwhite.smkd.payload.request.SearchRequest;
 import com.edatwhite.smkd.payload.response.MessageResponse;
 import com.edatwhite.smkd.repository.DivisionRepository;
 
+import com.edatwhite.smkd.repository.FamiliarizationSheetRepository;
 import com.edatwhite.smkd.repository.RelationalDocumentRepository;
 import com.edatwhite.smkd.repository.UserRepository;
 import com.edatwhite.smkd.service.document.ESQuery;
@@ -41,6 +42,10 @@ public class SMKDocController {
     @Autowired
     RelationalDocumentRepository relationalDocumentRepository;
 
+    @Autowired
+    FamiliarizationSheetRepository familiarizationSheetRepository;
+
+
 //    @Autowired
 //    SMKDocRepository smkDocRepository;
 
@@ -55,27 +60,54 @@ public class SMKDocController {
 //        this.service = service;
 //    }
 
+    //Тест поиск пользователей по отделам
+    @GetMapping("/getUsersByDivisions/{division_id}")
+    public Set<Users> getUsersByDivisions(@RequestBody final @PathVariable String division_id) {
+
+        return userRepository.findByDivisions(divisionRepository.findById(Long.parseLong(division_id)).get());
+    }
+
     @PostMapping("/create")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ResponseMessage> save(@RequestBody final SMKDoc smkDoc) {
-        System.out.println(smkDoc.toString());
+    public ResponseEntity<ResponseMessage> save(@RequestBody final DocumentWithDivisionsDTO request) {
+//        System.out.println(smkDoc.toString());
         try {
             SMKDoc doc = new SMKDoc(
-                    smkDoc.getName(),
-                    smkDoc.getCode(),
-                    smkDoc.getVersion(),
-                    smkDoc.getDate(),
-                    smkDoc.getContent(),
-                    smkDoc.getAppendix(),
-                    smkDoc.getLinks(),
-                    smkDoc.getApproval_sheet()
+                    request.getDocument().getName(),
+                    request.getDocument().getCode(),
+                    request.getDocument().getVersion(),
+                    request.getDocument().getDate(),
+                    request.getDocument().getContent(),
+                    request.getDocument().getAppendix(),
+                    request.getDocument().getLinks(),
+                    request.getDocument().getApproval_sheet()
 
             );
-//            System.out.println("ID = " + doc.getId());
-//            smkDocRepository.save(doc);
-//            service.save(smkDoc);
+
             esQuery.createOrUpdateDocument(doc);
-            relationalDocumentRepository.save(new RelationalDocument(doc.getId().toString(), smkDoc.getCode(), smkDoc.getName()));
+            relationalDocumentRepository.save(new RelationalDocument(
+                    doc.getId().toString(),
+                    request.getDocument().getCode(),
+                    request.getDocument().getName()
+            ));
+
+
+//            userRepository.findByDivisions(divisionRepository.findById(Long.parseLong(division_id)).get());
+
+            Set<Users> usersByDivision = new HashSet<>();
+            for (long division_id : request.getDivisions()) {
+                for (Users user : userRepository.findByDivisions(divisionRepository.findById(division_id).get()))
+                    usersByDivision.add(user);
+            }
+
+            for (Users user : usersByDivision) {
+                familiarizationSheetRepository.save(new FamiliarizationSheet(
+                        user.getUser_id(),
+                        doc.getId(),
+                        false
+                ));
+            }
+
 
             String message = "The document has been successfully created! ";
             String document_id = doc.getId();
@@ -88,9 +120,47 @@ public class SMKDocController {
         }
     }
 
+    @GetMapping("/familiarizationForUser/{user_id}")
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
+    public Set<FamiliarizationForUserDTO> getFamiliarizationSheetForUser(@PathVariable String user_id) {
+        Set<FamiliarizationForUserDTO> familiarizationSheetForUser = new HashSet<>();
+
+        Set<FamiliarizationSheet> familiarizationSheets = familiarizationSheetRepository.findByUserIdAndViewedFalse(Long.parseLong(user_id));
+
+        for (FamiliarizationSheet fam : familiarizationSheets) {
+            familiarizationSheetForUser.add(new FamiliarizationForUserDTO(
+                    fam.getFam_id(),
+                    fam.getDocumentId(),
+                    relationalDocumentRepository.findById(fam.getDocumentId()).get().getDocument_code(),
+                    relationalDocumentRepository.findById(fam.getDocumentId()).get().getDocument_name()
+            ));
+        }
+
+
+        return familiarizationSheetForUser;
+    }
+
+    @PutMapping("/confirmFamiliarization")
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
+    public ResponseEntity<ResponseMessage> confirmFamiliarization(@RequestParam Long user_id, @RequestParam String document_id) {
+        try {
+            FamiliarizationSheet famSheet = familiarizationSheetRepository.findByUserIdAndDocumentId(user_id, document_id);
+            famSheet.setViewed(true);
+            familiarizationSheetRepository.save(famSheet);
+
+            String message = "The user with id " + user_id + " has successfully familiarization with document " + document_id + " !";
+            System.out.println(message);
+            return ResponseEntity.status(HttpStatus.OK).body(new ResponseMessage(message));
+        } catch (Exception e) {
+            String message = "Error when trying to create document " + e.getMessage();
+            System.out.println(e);
+            return ResponseEntity.status(HttpStatus.EXPECTATION_FAILED).body(new ResponseMessage(message));
+        }
+    }
+
     @GetMapping("/favorites/{user_id}")
     @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
-    public Set<RelationalDocument> getFavorites(@PathVariable String user_id ) {
+    public Set<RelationalDocument> getFavorites(@PathVariable String user_id) {
         System.out.println(user_id);
         Users user = userRepository.findById(Long.parseLong(user_id)).get();
 
@@ -100,8 +170,10 @@ public class SMKDocController {
     @DeleteMapping("/deleteDocument")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Object> deleteDocumentById(@RequestParam String id) throws IOException {
-        String response =  esQuery.deleteDocumentById(id);
+
+        familiarizationSheetRepository.deleteDocumentIdByDocumentId(id);
         relationalDocumentRepository.deleteById(id);
+        String response = esQuery.deleteDocumentById(id);
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
@@ -119,25 +191,28 @@ public class SMKDocController {
 //        if (documentIdRequest.getValue() == null || documentIdRequest.getValue().isEmpty()) {
 //            Optional<SMKDoc> ESDocument = smkDocRepository.findById(documentIdRequest.getDocument_id());
 //            SMKDoc doc = (SMKDoc) ESDocument.get();
-            SMKDoc doc = esQuery.getDocumentById(documentIdRequest.getDocument_id());
-            DocumentDTO documentDTO = new DocumentDTO(
-                    doc.getId().toString(),
-                    doc.getName(),
-                    doc.getCode(),
-                    doc.getVersion(),
-                    doc.getDate(),
-                    doc.getContent(),
-                    doc.getAppendix(),
-                    doc.getLinks(),
-                    doc.getApproval_sheet()
-            );
+        SMKDoc doc = esQuery.getDocumentById(documentIdRequest.getDocument_id());
+        DocumentDTO documentDTO = new DocumentDTO(
+                doc.getId().toString(),
+                doc.getName(),
+                doc.getCode(),
+                doc.getVersion(),
+                doc.getDate(),
+                doc.getContent(),
+                doc.getAppendix(),
+                doc.getLinks(),
+                doc.getApproval_sheet()
+        );
 
-            Users user = userRepository.findById(documentIdRequest.getUser_id()).get();
-            if (user.getFavorites().stream().anyMatch(fav -> fav.getDocument_id().equals(doc.getId()))) {
-                documentDTO.setFavorite(true);
-            }
+        Users user = userRepository.findById(documentIdRequest.getUser_id()).get();
+        if (user.getFavorites().stream().anyMatch(fav -> fav.getDocument_id().equals(doc.getId()))) {
+            documentDTO.setFavorite(true);
+        }
 
-            return documentDTO;
+        if (familiarizationSheetRepository.existsFamiliarizationSheetByUserIdAndDocumentId(documentIdRequest.getUser_id(), documentIdRequest.getDocument_id()))
+            documentDTO.setFamiliarize(familiarizationSheetRepository.findByUserIdAndDocumentId(documentIdRequest.getUser_id(), documentIdRequest.getDocument_id()).getViewed());
+
+        return documentDTO;
 //        } else {
 //            SearchHit<SMKDoc> ESDocument = smkDocRepository.findByIdNested(documentIdRequest.getValue(), documentIdRequest.getDocument_id()).get(0);
 //
@@ -190,7 +265,6 @@ public class SMKDocController {
 
 
         }
-
 
 
         return documents;
@@ -276,7 +350,6 @@ public class SMKDocController {
 //    }
 
 
-
     @GetMapping("/divisions")
     @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
     public List<DivisionDTO> getDivisions() {
@@ -338,7 +411,6 @@ public class SMKDocController {
             }
         }
     }
-
 
 
 //    private void findChild(Division division, List<DivisionDTO> divisionsDTO) {
