@@ -1,10 +1,7 @@
 package com.edatwhite.smkd.service.document;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
-import co.elastic.clients.elasticsearch._types.query_dsl.BoolQuery;
-import co.elastic.clients.elasticsearch._types.query_dsl.MultiMatchQuery;
-import co.elastic.clients.elasticsearch._types.query_dsl.NestedQuery;
-import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders;
+import co.elastic.clients.elasticsearch._types.query_dsl.*;
 import co.elastic.clients.elasticsearch.core.*;
 import co.elastic.clients.elasticsearch.core.search.Highlight;
 import co.elastic.clients.elasticsearch.core.search.HighlightField;
@@ -139,7 +136,93 @@ public class ESQuery {
         field.put("content.chapter", new HighlightField.Builder().build());
         field.put("appendix", new HighlightField.Builder().build());
 
-        Highlight.Builder highlight = new Highlight.Builder().fields(field);
+        Highlight.Builder highlight = new Highlight.Builder().fields(field).preTags("<strong>").postTags("</strong>");
+
+        SearchRequest searchRequest = SearchRequest.of(s -> s.index(indexName).query(boolQuery1._toQuery()).highlight(highlight.build()));
+        System.out.println(searchRequest.query().toString());
+
+        SearchResponse searchResponse = elasticsearchClient.search(searchRequest, SMKDoc.class);
+        List<Hit> hits = searchResponse.hits().hits();
+        List<DocumentDTO> documents = new ArrayList<>();
+        for (Hit object : hits) {
+
+            System.out.println((SMKDoc) object.source());
+//            SMKDoc doc = new SMKDoc(
+//                    ((SMKDoc) object.source()).getId(),
+//                    ((SMKDoc) object.source()).getName(),
+//                    ((SMKDoc) object.source()).getCode(),
+//                    ((SMKDoc) object.source()).getVersion(),
+//                    ((SMKDoc) object.source()).getDate(),
+//                    ((SMKDoc) object.source()).getContent(),
+//                    ((SMKDoc) object.source()).getAppendix(),
+//                    ((SMKDoc) object.source()).getLinks(),
+//                    ((SMKDoc) object.source()).getApproval_sheet()
+//            );
+            documents.add(new DocumentDTO(
+                    ((SMKDoc) object.source()).getId(),
+                    ((SMKDoc) object.source()).getName(),
+                    ((SMKDoc) object.source()).getCode(),
+                    ((SMKDoc) object.source()).getVersion(),
+                    ((SMKDoc) object.source()).getDate(),
+                    ((SMKDoc) object.source()).getContent(),
+                    ((SMKDoc) object.source()).getAppendix(),
+                    ((SMKDoc) object.source()).getLinks(),
+                    ((SMKDoc) object.source()).getApproval_sheet(),
+                    object.highlight()));
+            System.out.println(object.highlight());
+        }
+
+        return documents;
+    }
+
+    public List<DocumentDTO> searchDocumentWithId(String value, String id) throws IOException {
+        System.out.println("search value " + value);
+
+
+
+                MultiMatchQuery multiMatchQuery = QueryBuilders.multiMatch()
+                        .query(value)
+                        .fields("content.chapter_title", "content.chapter")
+                        .build();
+            BoolQuery boolQuery = QueryBuilders.bool()
+                    .must(multiMatchQuery._toQuery())
+                    .build();
+
+        NestedQuery nestedQuery = QueryBuilders.nested()
+                .path("content")
+                .query(boolQuery._toQuery())
+                .build();
+
+        MultiMatchQuery multiMatchQuery1 = QueryBuilders.multiMatch()
+                .query(value)
+                .fields("code", "name", "appendix")
+                .build();
+
+
+        TermQuery termQuery = QueryBuilders.term()
+                .field("_id")
+                .value(id)
+                .build();
+
+        List<Query> filter = new ArrayList<>();
+        filter.add(termQuery._toQuery());
+
+
+        BoolQuery boolQuery1 = QueryBuilders.bool()
+                .must(nestedQuery._toQuery(), multiMatchQuery1._toQuery())
+                .filter(filter)
+                .build();
+
+        System.out.println(boolQuery1.toString());
+
+        Map<String, HighlightField> field = new HashMap();
+        field.put("code", new HighlightField.Builder().build());
+        field.put("name", new HighlightField.Builder().build());
+        field.put("content.chapter_title", new HighlightField.Builder().build());
+        field.put("content.chapter", new HighlightField.Builder().build());
+        field.put("appendix", new HighlightField.Builder().build());
+
+        Highlight.Builder highlight = new Highlight.Builder().fields(field).preTags("<strong>").postTags("</strong>");
 
         SearchRequest searchRequest = SearchRequest.of(s -> s.index(indexName).query(boolQuery1._toQuery()).highlight(highlight.build()));
         System.out.println(searchRequest.query().toString());

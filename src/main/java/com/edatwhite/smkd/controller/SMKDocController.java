@@ -188,34 +188,35 @@ public class SMKDocController {
     public DocumentDTO findByIdWithValue(@RequestBody DocumentIdRequest documentIdRequest) throws IOException {
 //        SearchHit<SMKDoc> ESDocument = null;
 
-//        if (documentIdRequest.getValue() == null || documentIdRequest.getValue().isEmpty()) {
+        if (documentIdRequest.getValue() == null || documentIdRequest.getValue().isEmpty()) {
 //            Optional<SMKDoc> ESDocument = smkDocRepository.findById(documentIdRequest.getDocument_id());
 //            SMKDoc doc = (SMKDoc) ESDocument.get();
-        SMKDoc doc = esQuery.getDocumentById(documentIdRequest.getDocument_id());
-        DocumentDTO documentDTO = new DocumentDTO(
-                doc.getId().toString(),
-                doc.getName(),
-                doc.getCode(),
-                doc.getVersion(),
-                doc.getDate(),
-                doc.getContent(),
-                doc.getAppendix(),
-                doc.getLinks(),
-                doc.getApproval_sheet()
-        );
+            SMKDoc doc = esQuery.getDocumentById(documentIdRequest.getDocument_id());
+            DocumentDTO documentDTO = new DocumentDTO(
+                    doc.getId().toString(),
+                    doc.getName(),
+                    doc.getCode(),
+                    doc.getVersion(),
+                    doc.getDate(),
+                    doc.getContent(),
+                    doc.getAppendix(),
+                    doc.getLinks(),
+                    doc.getApproval_sheet()
+            );
 
-        Users user = userRepository.findById(documentIdRequest.getUser_id()).get();
-        if (user.getFavorites().stream().anyMatch(fav -> fav.getDocument_id().equals(doc.getId()))) {
-            documentDTO.setFavorite(true);
-        }
+            Users user = userRepository.findById(documentIdRequest.getUser_id()).get();
+            if (user.getFavorites().stream().anyMatch(fav -> fav.getDocument_id().equals(doc.getId()))) {
+                documentDTO.setFavorite(true);
+            }
 
-        if (familiarizationSheetRepository.existsFamiliarizationSheetByUserIdAndDocumentId(documentIdRequest.getUser_id(), documentIdRequest.getDocument_id()))
-            documentDTO.setFamiliarize(familiarizationSheetRepository.findByUserIdAndDocumentId(documentIdRequest.getUser_id(), documentIdRequest.getDocument_id()).getViewed());
+            if (familiarizationSheetRepository.existsFamiliarizationSheetByUserIdAndDocumentId(documentIdRequest.getUser_id(), documentIdRequest.getDocument_id()))
+                documentDTO.setFamiliarize(familiarizationSheetRepository.findByUserIdAndDocumentId(documentIdRequest.getUser_id(), documentIdRequest.getDocument_id()).getViewed());
 
-        return documentDTO;
-//        } else {
+            return documentDTO;
+        } else {
+            System.out.println("get by id with search value");
 //            SearchHit<SMKDoc> ESDocument = smkDocRepository.findByIdNested(documentIdRequest.getValue(), documentIdRequest.getDocument_id()).get(0);
-//
+            DocumentDTO documentDTO = esQuery.searchDocumentWithId(documentIdRequest.getValue(), documentIdRequest.getDocument_id()).get(0);
 //            SMKDoc doc = (SMKDoc) ESDocument.getContent();
 //            DocumentDTO documentDTO = new DocumentDTO(
 //                    doc.getId().toString(),
@@ -229,14 +230,14 @@ public class SMKDocController {
 //                    doc.getApproval_sheet(),
 //                    ESDocument.getHighlightFields()
 //            );
-//
-//            Users user = userRepository.findById(documentIdRequest.getUser_id()).get();
-//            if (user.getFavorites().stream().anyMatch(fav -> fav.getDocument_id().equals(doc.getId()))) {
-//                documentDTO.setFavorite(true);
-//            }
-//
-//            return documentDTO;
-//        }
+
+            Users user = userRepository.findById(documentIdRequest.getUser_id()).get();
+            if (user.getFavorites().stream().anyMatch(fav -> fav.getDocument_id().equals(documentDTO.getId()))) {
+                documentDTO.setFavorite(true);
+            }
+
+            return documentDTO;
+        }
 
     }
 
