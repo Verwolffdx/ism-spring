@@ -75,8 +75,15 @@ public class SMKDocController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ResponseMessage> save(@RequestPart("document") DocumentWithDivisionsDTO document, @RequestPart("file") MultipartFile file) {
         try {
-            SMKDoc doc = new SMKDoc(document.getDocument().getName(), document.getDocument().getCode(), document.getDocument().getVersion(), document.getDocument().getDate(), document.getDocument().getContent(), document.getDocument().getAppendix(), document.getDocument().getLinks(), document.getDocument().getApproval_sheet()
-
+            SMKDoc doc = new SMKDoc(
+                    document.getDocument().getName(),
+                    document.getDocument().getCode(),
+                    document.getDocument().getVersion(),
+                    document.getDocument().getDate(),
+                    document.getDocument().getContent(),
+                    document.getDocument().getAppendix(),
+                    document.getDocument().getLinks(),
+                    document.getDocument().getApproval_sheet()
             );
 
             esQuery.createOrUpdateDocument(doc);
@@ -163,8 +170,8 @@ public class SMKDocController {
     public ResponseEntity<Object> deleteDocumentById(@RequestParam String id) throws IOException {
 
         familiarizationSheetRepository.deleteDocumentIdByDocumentId(id);
-        relationalDocumentRepository.deleteById(id);
         storageService.load(relationalDocumentRepository.findById(id).get().getDocument_path());
+        relationalDocumentRepository.deleteById(id);
         String response = esQuery.deleteDocumentById(id);
 
         return new ResponseEntity<>(response, HttpStatus.OK);
