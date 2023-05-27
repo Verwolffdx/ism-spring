@@ -37,9 +37,9 @@ public class ESQuery {
 
         if (response.found()) {
             document = response.source();
-            System.out.println("Product name " + document.getName());
+            System.out.println("Document name " + document.getName());
         } else {
-            System.out.println("Product not found");
+            System.out.println("Document not found");
         }
 
         return document;

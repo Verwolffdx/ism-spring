@@ -16,6 +16,7 @@ import com.edatwhite.smkd.repository.UserRepository;
 import com.edatwhite.smkd.service.document.ESQuery;
 import com.edatwhite.smkd.entity.smkdocument.SMKDoc;
 import com.edatwhite.smkd.service.file.FilesStorageService;
+import com.ibm.icu.text.Transliterator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
@@ -88,6 +89,7 @@ public class SMKDocController {
 
             esQuery.createOrUpdateDocument(doc);
 
+
             storageService.save(file);
             System.out.println("Filename " + file.getName());
             System.out.println("Origignal Filename " + file.getOriginalFilename());
@@ -120,7 +122,9 @@ public class SMKDocController {
     public ResponseEntity<Resource> getFile(@PathVariable String id) {
         RelationalDocument document = relationalDocumentRepository.findById(id).get();
         Resource file = storageService.load(document.getDocument_path());
-        return ResponseEntity.ok().header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + file.getFilename() + "\"").body(file);
+        Transliterator toLatinTrans = Transliterator.getInstance("Cyrillic-Latin");
+        String filename = toLatinTrans.transliterate(file.getFilename());
+        return ResponseEntity.ok().header(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS, "Content-Disposition").header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"").body(file);
     }
 
     @GetMapping("/familiarizationForUser/{user_id}")
