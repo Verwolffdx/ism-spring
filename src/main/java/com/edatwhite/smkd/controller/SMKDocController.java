@@ -8,11 +8,8 @@ import com.edatwhite.smkd.message.ResponseMessage;
 import com.edatwhite.smkd.payload.request.DocumentIdRequest;
 import com.edatwhite.smkd.payload.request.SearchRequest;
 import com.edatwhite.smkd.payload.response.MessageResponse;
-import com.edatwhite.smkd.repository.DivisionRepository;
+import com.edatwhite.smkd.repository.*;
 
-import com.edatwhite.smkd.repository.FamiliarizationSheetRepository;
-import com.edatwhite.smkd.repository.RelationalDocumentRepository;
-import com.edatwhite.smkd.repository.UserRepository;
 import com.edatwhite.smkd.service.document.ESQuery;
 import com.edatwhite.smkd.entity.smkdocument.SMKDoc;
 import com.edatwhite.smkd.service.file.FilesStorageService;
@@ -28,6 +25,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/v2/smk")
@@ -49,6 +47,9 @@ public class SMKDocController {
     FamiliarizationSheetRepository familiarizationSheetRepository;
 
     @Autowired
+    TemplatesRepository templatesRepository;
+
+    @Autowired
     private ESQuery esQuery;
 
     //Тест поиск пользователей по отделам
@@ -61,11 +62,15 @@ public class SMKDocController {
     //Тест загрузки файлов документов
     @RequestMapping(value = "/test", method = RequestMethod.POST, consumes = {"multipart/form-data"})
     @ResponseBody
-    public String executeSampleService(@RequestPart("string") DocumentWrapper string, @RequestPart("file") MultipartFile file) {
+    public String executeSampleService(@RequestPart("string") DocumentWrapper string, @RequestPart("file") MultipartFile file, @RequestPart("templates") MultipartFile[] templates) {
 
         try {
             System.out.println(string.getName());
             System.out.println(file.getOriginalFilename());
+
+            Arrays.asList(templates).stream().forEach(template -> {
+                System.out.println(template.getOriginalFilename());
+            });
             return "Good";
         } catch (Exception e) {
             return e.getMessage().toString();
@@ -74,7 +79,7 @@ public class SMKDocController {
 
     @PostMapping(value = "/create", produces = "application/json", consumes = "multipart/form-data")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ResponseMessage> save(@RequestPart("document") DocumentWithDivisionsDTO document, @RequestPart("file") MultipartFile file) {
+    public ResponseEntity<ResponseMessage> save(@RequestPart("document") DocumentWithDivisionsDTO document, @RequestPart("file") MultipartFile file, @RequestPart("templates") MultipartFile[] templates) {
         try {
             SMKDoc doc = new SMKDoc(
                     document.getDocument().getName(),
@@ -91,10 +96,154 @@ public class SMKDocController {
 
 
             storageService.save(file);
-            System.out.println("Filename " + file.getName());
+//            System.out.println("Filename " + file.getName());
             System.out.println("Origignal Filename " + file.getOriginalFilename());
 
             relationalDocumentRepository.save(new RelationalDocument(doc.getId().toString(), document.getDocument().getCode(), document.getDocument().getName(), file.getOriginalFilename()));
+
+//            for (MultipartFile template : templates) {
+//                storageService.save(template);
+//                System.out.println("Template Filename " + template.getName());
+//                System.out.println("Origignal Template Filename " + template.getOriginalFilename());
+//
+//                templatesRepository.save(new Templates(
+//                        doc.getId(),
+//                        template.getOriginalFilename(),
+//                        template.getOriginalFilename()
+//                ));
+//            }
+
+//            List<String> templateNames = new ArrayList<>();
+            List<MultipartFile> templateList = Arrays.asList(templates).stream().collect(Collectors.toList());
+
+            for (int i = 0; i < templateList.size(); i++) {
+                storageService.save(templateList.get(i));
+                System.out.println("Template Filename " + templateList.get(i).getName());
+                System.out.println("Origignal Template Filename " + templateList.get(i).getOriginalFilename());
+
+                templatesRepository.save(new Templates(
+                        doc.getId(),
+                        doc.getAppendix().get(i),
+                        templateList.get(i).getOriginalFilename()
+                ));
+            }
+
+//            Arrays.asList(templates).stream().forEach(template -> {
+//
+//                storageService.save(template);
+//                System.out.println("Template Filename " + template.getName());
+//                System.out.println("Origignal Template Filename " + template.getOriginalFilename());
+//
+//                templatesRepository.save(new Templates(
+//                        doc.getId(),
+//                        template.getOriginalFilename(),
+//                        template.getOriginalFilename()
+//                ));
+//            });
+
+            Set<Users> usersByDivision = new HashSet<>();
+            for (long division_id : document.getDivisions()) {
+                for (Users user : userRepository.findByDivisions(divisionRepository.findById(division_id).get()))
+                    usersByDivision.add(user);
+            }
+
+            for (Users user : usersByDivision) {
+                familiarizationSheetRepository.save(new FamiliarizationSheet(user.getUser_id(), doc.getId(), false));
+            }
+
+            String message = "The document has been successfully created! ";
+            String document_id = doc.getId();
+            System.out.println(message);
+            return ResponseEntity.status(HttpStatus.OK).body(new ResponseMessage(message, document_id));
+        } catch (Exception e) {
+            String message = "Error when trying to create document " + e.getMessage();
+            System.out.println(e);
+            return ResponseEntity.status(HttpStatus.EXPECTATION_FAILED).body(new ResponseMessage(message));
+        }
+    }
+
+//    @PostMapping(value = "/create", produces = "application/json", consumes = "multipart/form-data")
+//    @PreAuthorize("hasRole('ADMIN')")
+//    public ResponseEntity<ResponseMessage> save(@RequestPart("document") DocumentWithDivisionsDTO document, @RequestPart("file") MultipartFile file, @RequestPart("templates") Map<String, MultipartFile> templates) {
+//        try {
+//            SMKDoc doc = new SMKDoc(
+//                    document.getDocument().getName(),
+//                    document.getDocument().getCode(),
+//                    document.getDocument().getVersion(),
+//                    document.getDocument().getDate(),
+//                    document.getDocument().getContent(),
+//                    document.getDocument().getAppendix(),
+//                    document.getDocument().getLinks(),
+//                    document.getDocument().getApproval_sheet()
+//            );
+//
+//            esQuery.createOrUpdateDocument(doc);
+//
+//
+//            storageService.save(file);
+////            System.out.println("Filename " + file.getName());
+//            System.out.println("Origignal Filename " + file.getOriginalFilename());
+//
+//            relationalDocumentRepository.save(new RelationalDocument(doc.getId().toString(), document.getDocument().getCode(), document.getDocument().getName(), file.getOriginalFilename()));
+//
+//            for (String key : templates.keySet()) {
+//                storageService.save(templates.get(key));
+//                System.out.println("Template Filename " + templates.get(key).getName());
+//                System.out.println("Origignal Template Filename " + templates.get(key).getOriginalFilename());
+//
+//                templatesRepository.save(new Templates(
+//                        doc.getId(),
+//                        templates.get(key).getOriginalFilename(),
+//                        templates.get(key).getOriginalFilename()
+//                ));
+//            }
+//
+//            for (String key : templates.keySet()) {
+//                System.out.println(key + ":" + templates.get(key));
+//            }
+//
+//            Set<Users> usersByDivision = new HashSet<>();
+//            for (long division_id : document.getDivisions()) {
+//                for (Users user : userRepository.findByDivisions(divisionRepository.findById(division_id).get()))
+//                    usersByDivision.add(user);
+//            }
+//
+//            for (Users user : usersByDivision) {
+//                familiarizationSheetRepository.save(new FamiliarizationSheet(user.getUser_id(), doc.getId(), false));
+//            }
+//
+//            String message = "The document has been successfully created! ";
+//            String document_id = doc.getId();
+//            System.out.println(message);
+//            return ResponseEntity.status(HttpStatus.OK).body(new ResponseMessage(message, document_id));
+//        } catch (Exception e) {
+//            String message = "Error when trying to create document " + e.getMessage();
+//            System.out.println(e);
+//            return ResponseEntity.status(HttpStatus.EXPECTATION_FAILED).body(new ResponseMessage(message));
+//        }
+//    }
+
+    @PostMapping(value = "/update", produces = "application/json", consumes = "multipart/form-data")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ResponseMessage> update(@RequestPart("document") DocumentWithDivisionsDTO document, @RequestPart("file") MultipartFile file) {
+        try {
+            System.out.println(document.getDocument().getId());
+            SMKDoc doc = document.getDocument();
+
+            esQuery.createOrUpdateDocument(doc);
+
+            RelationalDocument relationalDocument = relationalDocumentRepository.findById(doc.getId()).get();
+            storageService.delete(relationalDocument.getDocument_path());
+
+            storageService.save(file);
+            System.out.println("Filename " + file.getName());
+            System.out.println("Origignal Filename " + file.getOriginalFilename());
+
+            relationalDocument.setDocument_code(doc.getCode());
+            relationalDocument.setDocument_name(doc.getName());
+            relationalDocument.setDocument_path(file.getOriginalFilename());
+            relationalDocumentRepository.save(relationalDocument);
+
 
             Set<Users> usersByDivision = new HashSet<>();
             for (long division_id : document.getDivisions()) {
@@ -122,7 +271,17 @@ public class SMKDocController {
     public ResponseEntity<Resource> getFile(@PathVariable String id) {
         RelationalDocument document = relationalDocumentRepository.findById(id).get();
         Resource file = storageService.load(document.getDocument_path());
-        Transliterator toLatinTrans = Transliterator.getInstance("Cyrillic-Latin");
+        Transliterator toLatinTrans = Transliterator.getInstance("Russian-Latin/BGN");
+        String filename = toLatinTrans.transliterate(file.getFilename());
+        return ResponseEntity.ok().header(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS, "Content-Disposition").header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"").body(file);
+    }
+
+    @GetMapping("/template/{name}")
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
+    public ResponseEntity<Resource> getTemplate(@PathVariable String name) {
+        Templates template = templatesRepository.findByTemplateName(name).get();
+        Resource file = storageService.load(template.getTemplatePath());
+        Transliterator toLatinTrans = Transliterator.getInstance("Russian-Latin/BGN");
         String filename = toLatinTrans.transliterate(file.getFilename());
         return ResponseEntity.ok().header(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS, "Content-Disposition").header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"").body(file);
     }
@@ -174,7 +333,8 @@ public class SMKDocController {
     public ResponseEntity<Object> deleteDocumentById(@RequestParam String id) throws IOException {
 
         familiarizationSheetRepository.deleteDocumentIdByDocumentId(id);
-        storageService.load(relationalDocumentRepository.findById(id).get().getDocument_path());
+        storageService.delete(relationalDocumentRepository.findById(id).get().getDocument_path());
+        templatesRepository.deleteAll(templatesRepository.findByDocumentId(id));
         relationalDocumentRepository.deleteById(id);
         String response = esQuery.deleteDocumentById(id);
 
