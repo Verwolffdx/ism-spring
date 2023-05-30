@@ -7,6 +7,7 @@ import co.elastic.clients.elasticsearch.core.search.Highlight;
 import co.elastic.clients.elasticsearch.core.search.HighlightField;
 import co.elastic.clients.elasticsearch.core.search.Hit;
 import com.edatwhite.smkd.entity.DocumentDTO;
+import com.edatwhite.smkd.entity.TemplateDTO;
 import com.edatwhite.smkd.entity.smkdocument.SMKDoc;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -45,6 +46,8 @@ public class ESQuery {
         return document;
 
     }
+
+
 
     public String deleteDocumentById(String id) throws IOException {
 
@@ -100,6 +103,56 @@ public class ESQuery {
         }
 
         return documents;
+    }
+
+    public List<TemplateDTO> searchTemplates(String searchValue) throws IOException {
+
+        MatchQuery matchQuery = QueryBuilders.match()
+                .query(searchValue)
+                .field("appendix")
+                .build();
+
+        Map<String, HighlightField> field = new HashMap();
+        field.put("code", new HighlightField.Builder().build());
+        field.put("name", new HighlightField.Builder().build());
+        field.put("appendix", new HighlightField.Builder().build());
+
+        Highlight.Builder highlight = new Highlight.Builder().fields(field).preTags("").postTags("");
+
+        SearchRequest searchRequest = SearchRequest.of(s -> s.index(indexName).query(matchQuery._toQuery()).highlight(highlight.build()));
+        System.out.println(searchRequest.query().toString());
+
+        SearchResponse searchResponse = elasticsearchClient.search(searchRequest, SMKDoc.class);
+        List<Hit> hits = searchResponse.hits().hits();
+        List<TemplateDTO> templates = new ArrayList<>();
+        for (Hit object : hits) {
+
+//            System.out.println((SMKDoc) object.source());
+
+//            templates.add(new DocumentDTO(
+//                    ((SMKDoc) object.source()).getId(),
+//                    ((SMKDoc) object.source()).getName(),
+//                    ((SMKDoc) object.source()).getCode(),
+//                    ((SMKDoc) object.source()).getVersion(),
+//                    ((SMKDoc) object.source()).getDate(),
+//                    ((SMKDoc) object.source()).getContent(),
+//                    ((SMKDoc) object.source()).getAppendix(),
+//                    ((SMKDoc) object.source()).getLinks(),
+//                    ((SMKDoc) object.source()).getApproval_sheet(),
+//                    object.highlight()));
+
+            templates.add(new TemplateDTO(
+                    ((SMKDoc) object.source()).getId(),
+                    ((SMKDoc) object.source()).getName(),
+                    ((SMKDoc) object.source()).getCode(),
+                    ((SMKDoc) object.source()).getAppendix(),
+                    object.highlight()
+            ));
+            System.out.println(object.highlight());
+        }
+
+        return templates;
+
     }
 
     public List<DocumentDTO> searchDocument(String value) throws IOException {

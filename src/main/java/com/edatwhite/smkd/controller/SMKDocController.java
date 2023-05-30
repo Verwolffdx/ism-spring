@@ -396,6 +396,14 @@ public class SMKDocController {
         return documents;
     }
 
+    @GetMapping("/findtemplates/{searchValue}")
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
+    public List<TemplateDTO> findTemplates(@PathVariable String searchValue) throws IOException {
+        List<TemplateDTO> templates = esQuery.searchTemplates(searchValue);
+
+        return templates;
+    }
+
     @PostMapping("/addfavorites")
     @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
     public ResponseEntity<ResponseMessage> addToFavorites(@RequestBody final Favorites favorites) {
