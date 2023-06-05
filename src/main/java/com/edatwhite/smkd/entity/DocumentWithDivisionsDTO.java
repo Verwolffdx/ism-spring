@@ -9,12 +9,20 @@ public class DocumentWithDivisionsDTO {
     private SMKDoc document;
     private Set<Long> divisions;
 
+    private String doctype;
+
     public DocumentWithDivisionsDTO() {
     }
 
     public DocumentWithDivisionsDTO(SMKDoc document, Set<Long> divisions) {
         this.document = document;
         this.divisions = divisions;
+    }
+
+    public DocumentWithDivisionsDTO(SMKDoc document, Set<Long> divisions, String doctype) {
+        this.document = document;
+        this.divisions = divisions;
+        this.doctype = doctype;
     }
 
     public Long getUser_id() {
@@ -39,5 +47,13 @@ public class DocumentWithDivisionsDTO {
 
     public void setDivisions(Set<Long> divisions) {
         this.divisions = divisions;
+    }
+
+    public String getDoctype() {
+        return doctype;
+    }
+
+    public void setDoctype(String doctype) {
+        this.doctype = doctype;
     }
 }

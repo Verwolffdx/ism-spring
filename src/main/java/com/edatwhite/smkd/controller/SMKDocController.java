@@ -1,9 +1,7 @@
 package com.edatwhite.smkd.controller;
 
 import com.edatwhite.smkd.entity.*;
-import com.edatwhite.smkd.entity.smkdocument.Content;
-import com.edatwhite.smkd.entity.smkdocument.Parser;
-import com.edatwhite.smkd.entity.smkdocument.RelationalDocument;
+import com.edatwhite.smkd.entity.smkdocument.*;
 import com.edatwhite.smkd.message.ResponseMessage;
 import com.edatwhite.smkd.payload.request.DocumentIdRequest;
 import com.edatwhite.smkd.payload.request.SearchRequest;
@@ -11,7 +9,6 @@ import com.edatwhite.smkd.payload.response.MessageResponse;
 import com.edatwhite.smkd.repository.*;
 
 import com.edatwhite.smkd.service.document.ESQuery;
-import com.edatwhite.smkd.entity.smkdocument.SMKDoc;
 import com.edatwhite.smkd.service.file.FilesStorageService;
 import com.ibm.icu.text.Transliterator;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -48,6 +45,9 @@ public class SMKDocController {
 
     @Autowired
     TemplatesRepository templatesRepository;
+
+    @Autowired
+    DocTypeRepository docTypeRepository;
 
     @Autowired
     private ESQuery esQuery;
@@ -99,21 +99,35 @@ public class SMKDocController {
 //            System.out.println("Filename " + file.getName());
             System.out.println("Origignal Filename " + file.getOriginalFilename());
 
-            relationalDocumentRepository.save(new RelationalDocument(doc.getId().toString(), document.getDocument().getCode(), document.getDocument().getName(), file.getOriginalFilename()));
+            Long doctype;
 
-//            for (MultipartFile template : templates) {
-//                storageService.save(template);
-//                System.out.println("Template Filename " + template.getName());
-//                System.out.println("Origignal Template Filename " + template.getOriginalFilename());
-//
-//                templatesRepository.save(new Templates(
-//                        doc.getId(),
-//                        template.getOriginalFilename(),
-//                        template.getOriginalFilename()
-//                ));
-//            }
+            switch (document.getDoctype()) {
+                case "standarts":
+                    doctype = 1L;
+                    break;
+                case "regulations":
+                    doctype = 2L;
+                    break;
+                case "methodics":
+                    doctype = 3L;
+                    break;
+                case "methrek":
+                    doctype = 4L;
+                    break;
+                default:
+                    doctype = 5L;
+            }
 
-//            List<String> templateNames = new ArrayList<>();
+            relationalDocumentRepository.save(
+                    new RelationalDocument(
+                            doc.getId().toString(),
+                            document.getDocument().getCode(),
+                            document.getDocument().getName(),
+                            file.getOriginalFilename(),
+                            docTypeRepository.findById(doctype).get()
+                    )
+            );
+
             List<MultipartFile> templateList = Arrays.asList(templates).stream().collect(Collectors.toList());
 
             for (int i = 0; i < templateList.size(); i++) {
@@ -127,19 +141,6 @@ public class SMKDocController {
                         templateList.get(i).getOriginalFilename()
                 ));
             }
-
-//            Arrays.asList(templates).stream().forEach(template -> {
-//
-//                storageService.save(template);
-//                System.out.println("Template Filename " + template.getName());
-//                System.out.println("Origignal Template Filename " + template.getOriginalFilename());
-//
-//                templatesRepository.save(new Templates(
-//                        doc.getId(),
-//                        template.getOriginalFilename(),
-//                        template.getOriginalFilename()
-//                ));
-//            });
 
             Set<Users> usersByDivision = new HashSet<>();
             for (long division_id : document.getDivisions()) {
@@ -161,67 +162,6 @@ public class SMKDocController {
             return ResponseEntity.status(HttpStatus.EXPECTATION_FAILED).body(new ResponseMessage(message));
         }
     }
-
-//    @PostMapping(value = "/create", produces = "application/json", consumes = "multipart/form-data")
-//    @PreAuthorize("hasRole('ADMIN')")
-//    public ResponseEntity<ResponseMessage> save(@RequestPart("document") DocumentWithDivisionsDTO document, @RequestPart("file") MultipartFile file, @RequestPart("templates") Map<String, MultipartFile> templates) {
-//        try {
-//            SMKDoc doc = new SMKDoc(
-//                    document.getDocument().getName(),
-//                    document.getDocument().getCode(),
-//                    document.getDocument().getVersion(),
-//                    document.getDocument().getDate(),
-//                    document.getDocument().getContent(),
-//                    document.getDocument().getAppendix(),
-//                    document.getDocument().getLinks(),
-//                    document.getDocument().getApproval_sheet()
-//            );
-//
-//            esQuery.createOrUpdateDocument(doc);
-//
-//
-//            storageService.save(file);
-////            System.out.println("Filename " + file.getName());
-//            System.out.println("Origignal Filename " + file.getOriginalFilename());
-//
-//            relationalDocumentRepository.save(new RelationalDocument(doc.getId().toString(), document.getDocument().getCode(), document.getDocument().getName(), file.getOriginalFilename()));
-//
-//            for (String key : templates.keySet()) {
-//                storageService.save(templates.get(key));
-//                System.out.println("Template Filename " + templates.get(key).getName());
-//                System.out.println("Origignal Template Filename " + templates.get(key).getOriginalFilename());
-//
-//                templatesRepository.save(new Templates(
-//                        doc.getId(),
-//                        templates.get(key).getOriginalFilename(),
-//                        templates.get(key).getOriginalFilename()
-//                ));
-//            }
-//
-//            for (String key : templates.keySet()) {
-//                System.out.println(key + ":" + templates.get(key));
-//            }
-//
-//            Set<Users> usersByDivision = new HashSet<>();
-//            for (long division_id : document.getDivisions()) {
-//                for (Users user : userRepository.findByDivisions(divisionRepository.findById(division_id).get()))
-//                    usersByDivision.add(user);
-//            }
-//
-//            for (Users user : usersByDivision) {
-//                familiarizationSheetRepository.save(new FamiliarizationSheet(user.getUser_id(), doc.getId(), false));
-//            }
-//
-//            String message = "The document has been successfully created! ";
-//            String document_id = doc.getId();
-//            System.out.println(message);
-//            return ResponseEntity.status(HttpStatus.OK).body(new ResponseMessage(message, document_id));
-//        } catch (Exception e) {
-//            String message = "Error when trying to create document " + e.getMessage();
-//            System.out.println(e);
-//            return ResponseEntity.status(HttpStatus.EXPECTATION_FAILED).body(new ResponseMessage(message));
-//        }
-//    }
 
     @PostMapping(value = "/update", produces = "application/json", consumes = "multipart/form-data")
     @PreAuthorize("hasRole('ADMIN')")
@@ -372,6 +312,16 @@ public class SMKDocController {
             return documentDTO;
         }
 
+    }
+
+    @GetMapping("/documents/{doctype}")
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
+    public List<RelationalDocument> getDocumentsByType(@PathVariable String doctype) {
+        if (doctype.equals("all")) {
+            return relationalDocumentRepository.findAll();
+        } else {
+            return relationalDocumentRepository.findByDoctypeSign(doctype);
+        }
     }
 
     @GetMapping("/all")

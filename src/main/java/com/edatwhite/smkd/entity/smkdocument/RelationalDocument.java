@@ -1,8 +1,7 @@
 package com.edatwhite.smkd.entity.smkdocument;
 
-import javax.persistence.Entity;
-import javax.persistence.Id;
-import javax.persistence.Table;
+import javax.persistence.*;
+import java.util.HashSet;
 
 @Entity
 @Table(name = "documents")
@@ -13,6 +12,14 @@ public class RelationalDocument {
     private String document_name;
     private String document_path;
 
+//    @ManyToOne(fetch = FetchType.LAZY)
+//    @JoinTable(name = "doctypes",
+//            joinColumns = @JoinColumn(name = "document_id"),
+//            inverseJoinColumns = @JoinColumn(name = "doctype_id"))
+    @ManyToOne
+    @JoinColumn(name = "doctype_id")
+    private DocType doctype;
+
     public RelationalDocument() {
     }
 
@@ -22,6 +29,7 @@ public class RelationalDocument {
         this.document_name = document_name;
         this.document_path = "/";
     }
+
 
     //    public RelationalDocument(String document_code, String document_name, String document_path) {
 //        this.document_code = document_code;
@@ -34,6 +42,14 @@ public class RelationalDocument {
         this.document_code = document_code;
         this.document_name = document_name;
         this.document_path = document_path;
+    }
+
+    public RelationalDocument(String document_id, String document_code, String document_name, String document_path, DocType doctype) {
+        this.document_id = document_id;
+        this.document_code = document_code;
+        this.document_name = document_name;
+        this.document_path = document_path;
+        this.doctype = doctype;
     }
 
     public String getDocument_id() {
@@ -66,5 +82,13 @@ public class RelationalDocument {
 
     public void setDocument_path(String document_path) {
         this.document_path = document_path;
+    }
+
+    public DocType getDoctype() {
+        return doctype;
+    }
+
+    public void setDoctype(DocType doctype) {
+        this.doctype = doctype;
     }
 }

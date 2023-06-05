@@ -14,7 +14,7 @@
 	<name>smkd</name>
 	<description>Master's project for LSTU</description>
 	<properties>
-		<java.version>19</java.version>
+		<java.version>17</java.version>
 	</properties>
 	<dependencies>
 		<dependency>
