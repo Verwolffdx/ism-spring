@@ -5,7 +5,6 @@ import com.edatwhite.smkd.entity.smkdocument.*;
 import com.edatwhite.smkd.message.ResponseMessage;
 import com.edatwhite.smkd.payload.request.DocumentIdRequest;
 import com.edatwhite.smkd.payload.request.SearchRequest;
-import com.edatwhite.smkd.payload.response.MessageResponse;
 import com.edatwhite.smkd.repository.*;
 
 import com.edatwhite.smkd.service.document.ESQuery;
@@ -13,6 +12,7 @@ import com.edatwhite.smkd.service.file.FilesStorageService;
 import com.ibm.icu.text.Transliterator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.Resource;
+import org.springframework.core.io.ResourceEditor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -130,16 +130,36 @@ public class SMKDocController {
 
             List<MultipartFile> templateList = Arrays.asList(templates).stream().collect(Collectors.toList());
 
-            for (int i = 0; i < templateList.size(); i++) {
-                storageService.save(templateList.get(i));
-                System.out.println("Template Filename " + templateList.get(i).getName());
-                System.out.println("Origignal Template Filename " + templateList.get(i).getOriginalFilename());
+//            for (int i = 0; i < templateList.size(); i++) {
+//                storageService.save(templateList.get(i));
+//                System.out.println("Template Filename " + templateList.get(i).getName());
+//                System.out.println("Origignal Template Filename " + templateList.get(i).getOriginalFilename());
+//
+//                templatesRepository.save(new Templates(
+//                        doc.getId(),
+//                        doc.getAppendix().get(i),
+//                        templateList.get(i).getOriginalFilename()
+//                ));
+//            }
 
-                templatesRepository.save(new Templates(
-                        doc.getId(),
-                        doc.getAppendix().get(i),
-                        templateList.get(i).getOriginalFilename()
-                ));
+            for (int i = 0; i < doc.getAppendix().size(); i++) {
+                if (templateList.size() > i) {
+                    storageService.save(templateList.get(i));
+                    System.out.println("Template Filename " + templateList.get(i).getName());
+                    System.out.println("Origignal Template Filename " + templateList.get(i).getOriginalFilename());
+
+                    templatesRepository.save(new Templates(
+                            doc.getId(),
+                            doc.getAppendix().get(i),
+                            templateList.get(i).getOriginalFilename()
+                    ));
+                } else {
+                    templatesRepository.save(new Templates(
+                            doc.getId(),
+                            doc.getAppendix().get(i),
+                            "/"
+                    ));
+                }
             }
 
             Set<Users> usersByDivision = new HashSet<>();
@@ -220,10 +240,16 @@ public class SMKDocController {
     @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
     public ResponseEntity<Resource> getTemplate(@PathVariable String name) {
         Templates template = templatesRepository.findByTemplateName(name).get();
-        Resource file = storageService.load(template.getTemplatePath());
-        Transliterator toLatinTrans = Transliterator.getInstance("Russian-Latin/BGN");
-        String filename = toLatinTrans.transliterate(file.getFilename());
-        return ResponseEntity.ok().header(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS, "Content-Disposition").header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"").body(file);
+        if (template.getTemplatePath().equals("/")) {
+
+
+            return ResponseEntity.noContent().build();
+        } else {
+            Resource file = storageService.load(template.getTemplatePath());
+            Transliterator toLatinTrans = Transliterator.getInstance("Russian-Latin/BGN");
+            String filename = toLatinTrans.transliterate(file.getFilename());
+            return ResponseEntity.ok().header(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS, "Content-Disposition").header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"").body(file);
+        }
     }
 
     @GetMapping("/familiarizationForUser/{user_id}")
@@ -272,9 +298,48 @@ public class SMKDocController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Object> deleteDocumentById(@RequestParam String id) throws IOException {
 
+
         familiarizationSheetRepository.deleteDocumentIdByDocumentId(id);
         storageService.delete(relationalDocumentRepository.findById(id).get().getDocument_path());
+
+        for (Templates t : templatesRepository.findByDocumentId(id)) {
+            if (!t.getTemplatePath().equals("/"))
+                storageService.delete(t.getTemplatePath());
+            t.getFavoritesTemplate().clear();
+            templatesRepository.save(t);
+            for (Users user : t.getFavoritesTemplate()) {
+                user.deleteFavoriteTemplate(t);
+                userRepository.save(user);
+            }
+
+        }
+
         templatesRepository.deleteAll(templatesRepository.findByDocumentId(id));
+
+        RelationalDocument document = relationalDocumentRepository.findById(id).get();
+
+
+        document.getFavorites().clear();
+
+        relationalDocumentRepository.save(document);
+        for (Users user : document.getFavorites()) {
+            user.deleteFavorite(document);
+            userRepository.save(user);
+        }
+
+//        Set<Users> users = userRepository.findUsersByFavorites(id);
+//        for (Users user : users) {
+//            user.deleteFavorite(document);
+//            for (Templates templates : user.getFavoritesTemplate()) {
+//                if (templates.getDocumentId().equals(document.getDocument_id())) {
+//                    user.deleteFavoriteTemplate(templates);
+//                }
+//            }
+//        }
+
+//        System.out.println("FAVS " + relationalDocumentRepository.findByFavoritesDocumentId(id));
+
+
         relationalDocumentRepository.deleteById(id);
         String response = esQuery.deleteDocumentById(id);
 
@@ -308,6 +373,9 @@ public class SMKDocController {
             if (user.getFavorites().stream().anyMatch(fav -> fav.getDocument_id().equals(documentDTO.getId()))) {
                 documentDTO.setFavorite(true);
             }
+
+            if (familiarizationSheetRepository.existsFamiliarizationSheetByUserIdAndDocumentId(documentIdRequest.getUser_id(), documentIdRequest.getDocument_id()))
+                documentDTO.setFamiliarize(familiarizationSheetRepository.findByUserIdAndDocumentId(documentIdRequest.getUser_id(), documentIdRequest.getDocument_id()).getViewed());
 
             return documentDTO;
         }
@@ -346,10 +414,26 @@ public class SMKDocController {
         return documents;
     }
 
-    @GetMapping("/findtemplates/{searchValue}")
+    @PostMapping("/findtemplates")
     @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
-    public List<TemplateDTO> findTemplates(@PathVariable String searchValue) throws IOException {
-        List<TemplateDTO> templates = esQuery.searchTemplates(searchValue);
+    public List<TemplateDTO> findTemplates(@RequestBody SearchRequest searchRequest) throws IOException {
+        List<TemplateDTO> templates = esQuery.searchTemplates(searchRequest.getSearch_value());
+
+        Users user = userRepository.findById(searchRequest.getUser_id()).get();
+
+
+        for (TemplateDTO t : templates) {
+
+            for (String s : t.getAppendix()) {
+                System.out.println("TMP " + s);
+
+                Templates tmp = templatesRepository.findByTemplateName(s).get();
+                if (user.getFavoritesTemplate().stream().anyMatch(fav -> fav.getTemplateName().equals(tmp))) {
+                    t.setFavorite(true);
+                }
+            }
+
+        }
 
         return templates;
     }
@@ -382,6 +466,38 @@ public class SMKDocController {
             return ResponseEntity.status(HttpStatus.OK).body(new ResponseMessage(message));
         } catch (Exception e) {
             String message = "Error when trying to remove from favorites " + e.getMessage();
+            return ResponseEntity.status(HttpStatus.EXPECTATION_FAILED).body(new ResponseMessage(message));
+        }
+    }
+
+    @PostMapping("/addfavoritestemplate")
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
+    public ResponseEntity<ResponseMessage> addTemplateToFavorites(@RequestBody final FavoritesTemplate favorites) {
+        try {
+            Users user = userRepository.findById(favorites.getUserId()).get();
+            Templates template = templatesRepository.findById(favorites.getTemplateId()).get();
+            user.addFavoriteTemplate(template);
+            userRepository.save(user);
+            String message = "The template has been successfully added to favorites!";
+            return ResponseEntity.status(HttpStatus.OK).body(new ResponseMessage(message));
+        } catch (Exception e) {
+            String message = "Error when trying to add template to favorites " + e.getMessage();
+            return ResponseEntity.status(HttpStatus.EXPECTATION_FAILED).body(new ResponseMessage(message));
+        }
+    }
+
+    @PostMapping("/deletefavoritestemplate")
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
+    public ResponseEntity<ResponseMessage> deleteTemplateFromFavorites(@RequestBody final FavoritesTemplate favorites) {
+        try {
+            Users user = userRepository.findById(favorites.getUserId()).get();
+            Templates template = templatesRepository.findById(favorites.getTemplateId()).get();
+            user.deleteFavoriteTemplate(template);
+            userRepository.save(user);
+            String message = "Template successfully removed from favorites!";
+            return ResponseEntity.status(HttpStatus.OK).body(new ResponseMessage(message));
+        } catch (Exception e) {
+            String message = "Error when trying to remove template from favorites " + e.getMessage();
             return ResponseEntity.status(HttpStatus.EXPECTATION_FAILED).body(new ResponseMessage(message));
         }
     }

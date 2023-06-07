@@ -4,11 +4,13 @@ import java.util.List;
 import java.util.Map;
 
 public class TemplateDTO {
+    private String templateId;
     private String documentId;
     private String documentCode;
     private String documentName;
     private List<String> appendix;
     private Map<String, List<String>> highlightFields;
+    private boolean isFavorite = false;
 
     public TemplateDTO() {
     }
@@ -19,6 +21,23 @@ public class TemplateDTO {
         this.documentName = documentName;
         this.appendix = appendix;
         this.highlightFields = highlightFields;
+    }
+
+    public TemplateDTO(String documentId, String documentCode, String documentName, List<String> appendix, Map<String, List<String>> highlightFields, boolean isFavorite) {
+        this.documentId = documentId;
+        this.documentCode = documentCode;
+        this.documentName = documentName;
+        this.appendix = appendix;
+        this.highlightFields = highlightFields;
+        this.isFavorite = isFavorite;
+    }
+
+    public String getTemplateId() {
+        return templateId;
+    }
+
+    public void setTemplateId(String templateId) {
+        this.templateId = templateId;
     }
 
     public String getDocumentId() {
@@ -59,5 +78,13 @@ public class TemplateDTO {
 
     public void setHighlightFields(Map<String, List<String>> highlightFields) {
         this.highlightFields = highlightFields;
+    }
+
+    public boolean isFavorite() {
+        return isFavorite;
+    }
+
+    public void setFavorite(boolean favorite) {
+        isFavorite = favorite;
     }
 }

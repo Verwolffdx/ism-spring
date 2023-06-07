@@ -1,6 +1,9 @@
 package com.edatwhite.smkd.entity;
 
+import org.apache.catalina.User;
+
 import javax.persistence.*;
+import java.util.Set;
 
 @Entity
 public class Templates {
@@ -18,6 +21,9 @@ public class Templates {
     @Column(name = "template_path")
     private String templatePath;
 
+    @ManyToMany(mappedBy = "favoritesTemplate")
+    private Set<Users> favoritesTemplate;
+
     public Templates() {
     }
 
@@ -32,6 +38,14 @@ public class Templates {
         this.documentId = documentId;
         this.templateName = templateName;
         this.templatePath = templatePath;
+    }
+
+    public Templates(Long templateId, String documentId, String templateName, String templatePath, Set<Users> favoritesTemplate) {
+        this.templateId = templateId;
+        this.documentId = documentId;
+        this.templateName = templateName;
+        this.templatePath = templatePath;
+        this.favoritesTemplate = favoritesTemplate;
     }
 
     public Long getTemplateId() {
@@ -64,5 +78,21 @@ public class Templates {
 
     public void setTemplatePath(String templatePath) {
         this.templatePath = templatePath;
+    }
+
+    public Set<Users> getFavoritesTemplate() {
+        return favoritesTemplate;
+    }
+
+    public void setFavoritesTemplate(Set<Users> favoritesTemplate) {
+        this.favoritesTemplate = favoritesTemplate;
+    }
+
+    public void addFavoritesTemplate(Users user) {
+        this.favoritesTemplate.add(user);
+    }
+
+    public void deleteFavoritesTemplate(Users user) {
+        this.favoritesTemplate.remove(user);
     }
 }

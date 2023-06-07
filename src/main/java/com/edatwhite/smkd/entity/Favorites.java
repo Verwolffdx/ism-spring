@@ -7,9 +7,7 @@ import javax.persistence.Id;
 //@Embeddable
 public class Favorites {
 
-
     private String document_id;
-
 
     private Long user_id;
 

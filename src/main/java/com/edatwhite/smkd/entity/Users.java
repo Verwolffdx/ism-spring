@@ -38,6 +38,12 @@ public class Users {
             inverseJoinColumns = @JoinColumn(name = "document_id"))
     private Set<RelationalDocument> favorites = new HashSet<>();
 
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(name = "favorites_template",
+            joinColumns = @JoinColumn(name = "user_id"),
+            inverseJoinColumns = @JoinColumn(name = "template_id"))
+    private Set<Templates> favoritesTemplate = new HashSet<>();
+
     public Users() {
     }
 
@@ -109,5 +115,21 @@ public class Users {
 
     public void deleteFavorite(RelationalDocument favorite) {
         this.favorites.remove(favorite);
+    }
+
+    public Set<Templates> getFavoritesTemplate() {
+        return favoritesTemplate;
+    }
+
+    public void setFavoritesTemplate(Set<Templates> favoritesTemplate) {
+        this.favoritesTemplate = favoritesTemplate;
+    }
+
+    public void addFavoriteTemplate(Templates templates) {
+        this.favoritesTemplate.add(templates);
+    }
+
+    public void deleteFavoriteTemplate(Templates templates) {
+        this.favoritesTemplate.remove(templates);
     }
 }
