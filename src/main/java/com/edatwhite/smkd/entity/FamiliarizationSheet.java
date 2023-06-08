@@ -15,6 +15,9 @@ public class FamiliarizationSheet {
     private String documentId;
     private Boolean viewed;
 
+    @Column(name = "fam_division")
+    private Long famDivision;
+
     public FamiliarizationSheet() {
     }
 
@@ -29,6 +32,13 @@ public class FamiliarizationSheet {
         this.userId = userId;
         this.documentId = documentId;
         this.viewed = viewed;
+    }
+
+    public FamiliarizationSheet(Long userId, String documentId, Boolean viewed, Long famDivision) {
+        this.userId = userId;
+        this.documentId = documentId;
+        this.viewed = viewed;
+        this.famDivision = famDivision;
     }
 
     public Long getFam_id() {
@@ -61,5 +71,13 @@ public class FamiliarizationSheet {
 
     public void setViewed(Boolean viewed) {
         this.viewed = viewed;
+    }
+
+    public Long getFamDivision() {
+        return famDivision;
+    }
+
+    public void setFamDivision(Long famDivision) {
+        this.famDivision = famDivision;
     }
 }

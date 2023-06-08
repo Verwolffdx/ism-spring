@@ -162,15 +162,19 @@ public class SMKDocController {
                 }
             }
 
-            Set<Users> usersByDivision = new HashSet<>();
+//            Set<Users> usersByDivision = new HashSet<>();
             for (long division_id : document.getDivisions()) {
+                Set<Users> usersByDivision = new HashSet<>();
                 for (Users user : userRepository.findByDivisions(divisionRepository.findById(division_id).get()))
                     usersByDivision.add(user);
+                for (Users user : usersByDivision) {
+                    familiarizationSheetRepository.save(new FamiliarizationSheet(user.getUser_id(), doc.getId(), false, division_id));
+                }
             }
 
-            for (Users user : usersByDivision) {
-                familiarizationSheetRepository.save(new FamiliarizationSheet(user.getUser_id(), doc.getId(), false));
-            }
+//            for (Users user : usersByDivision) {
+//                familiarizationSheetRepository.save(new FamiliarizationSheet(user.getUser_id(), doc.getId(), false));
+//            }
 
             String message = "The document has been successfully created! ";
             String document_id = doc.getId();
@@ -225,6 +229,17 @@ public class SMKDocController {
             return ResponseEntity.status(HttpStatus.EXPECTATION_FAILED).body(new ResponseMessage(message));
         }
     }
+
+    @GetMapping("/document/{id}/divisions")
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
+    public Set<Long> getDivisionsForDocument(@PathVariable String id) {
+        Set<Long> divisionsForDocument = new HashSet<>();
+        for (FamiliarizationSheet fam : familiarizationSheetRepository.findFamDivisionByDocumentId(id)) {
+            divisionsForDocument.add(fam.getFamDivision());
+        }
+        return divisionsForDocument;
+    }
+
 
     @GetMapping("/file/{id}")
     @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")

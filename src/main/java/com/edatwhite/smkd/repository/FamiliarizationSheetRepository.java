@@ -14,6 +14,8 @@ public interface FamiliarizationSheetRepository extends JpaRepository<Familiariz
 
     FamiliarizationSheet findByUserIdAndDocumentId(Long userId, String documentId);
 
+    Set<FamiliarizationSheet> findFamDivisionByDocumentId(String documentId);
+
     boolean existsFamiliarizationSheetByUserIdAndDocumentId(Long userId, String documentId);
 
     long deleteDocumentIdByDocumentId(String documentId);
