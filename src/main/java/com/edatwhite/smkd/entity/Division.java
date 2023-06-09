@@ -45,4 +45,9 @@ public class Division {
     public void setParent_id(Long parent_id) {
         this.parent_id = parent_id;
     }
+
+
+    public int compareTo(Division d) {
+        return this.getParent_id().compareTo(d.getParent_id());
+    }
 }
