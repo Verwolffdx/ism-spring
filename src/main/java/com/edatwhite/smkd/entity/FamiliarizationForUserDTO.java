@@ -24,6 +24,12 @@ public class FamiliarizationForUserDTO {
         this.document_name = document_name;
     }
 
+    public FamiliarizationForUserDTO(String document_id, String document_code, String document_name) {
+        this.document_id = document_id;
+        this.document_code = document_code;
+        this.document_name = document_name;
+    }
+
     public Long getFam_id() {
         return fam_id;
     }

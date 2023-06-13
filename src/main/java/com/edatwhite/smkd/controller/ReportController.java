@@ -3,15 +3,9 @@ package com.edatwhite.smkd.controller;
 import com.edatwhite.smkd.entity.Division;
 import com.edatwhite.smkd.entity.DivisionDTO;
 import com.edatwhite.smkd.entity.FamiliarizationSheet;
-import com.edatwhite.smkd.entity.reports.DivisionForReport;
-import com.edatwhite.smkd.entity.reports.DocTypeForReport;
-import com.edatwhite.smkd.entity.reports.DocumentForReport;
-import com.edatwhite.smkd.entity.reports.FamiliarizationReport;
+import com.edatwhite.smkd.entity.reports.*;
 import com.edatwhite.smkd.entity.smkdocument.RelationalDocument;
-import com.edatwhite.smkd.repository.DivisionRepository;
-import com.edatwhite.smkd.repository.DocTypeRepository;
-import com.edatwhite.smkd.repository.FamiliarizationSheetRepository;
-import com.edatwhite.smkd.repository.RelationalDocumentRepository;
+import com.edatwhite.smkd.repository.*;
 import org.apache.commons.compress.utils.Lists;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Sort;
@@ -40,11 +34,29 @@ public class ReportController {
     @Autowired
     RelationalDocumentRepository relationalDocumentRepository;
 
+    @Autowired
+    UserRepository userRepository;
+
     @GetMapping("/familiarizationreport/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    public Set<FamiliarizationSheet> getFamiliarizationReportForDocuments(@PathVariable String id) {
+    public FamReportForDocument getFamiliarizationReportForDocuments(@PathVariable String id) {
         //TODO Доделать лист ознакомления по документу
-        return familiarizationSheetRepository.findByDocumentIdOrderByFamDivision(id);
+
+        FamReportForDocument report = new FamReportForDocument(relationalDocumentRepository.findById(id).get().getDocument_code());
+        Set<FamiliarizationSheet> familiarizationSheet = familiarizationSheetRepository.findByDocumentId(id);
+
+        List<ReportItem> reportItems = new ArrayList<>();
+        for (FamiliarizationSheet f : familiarizationSheet) {
+            reportItems.add(new ReportItem(
+                    divisionRepository.findById(f.getFamDivision()).get().getDivision_name(),
+                    userRepository.findById(f.getUserId()).get().getFio(),
+                    f.getViewed()
+            ));
+        }
+
+        report.setReport(reportItems);
+
+        return report;
     }
 
     @GetMapping("/familiarizationreport")

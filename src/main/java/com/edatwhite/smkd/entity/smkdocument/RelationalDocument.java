@@ -2,6 +2,7 @@ package com.edatwhite.smkd.entity.smkdocument;
 
 import com.edatwhite.smkd.entity.Users;
 
+import javax.annotation.Nullable;
 import javax.persistence.*;
 import java.util.Set;
 
@@ -28,11 +29,15 @@ public class RelationalDocument {
 //            inverseJoinColumns = @JoinColumn(name = "user_id"))
 //    private Set<RelationalDocument> favorites = new HashSet<>();
 
-    @ManyToMany(mappedBy = "favorites")
+
+    @Transient
+    @ManyToMany(mappedBy = "favorites", fetch=FetchType.LAZY)
     private Set<Users> favorites;
 
     public RelationalDocument() {
     }
+
+
 
     public RelationalDocument(String document_id, String document_code, String document_name) {
         this.document_id = document_id;
@@ -40,13 +45,6 @@ public class RelationalDocument {
         this.document_name = document_name;
         this.document_path = "/";
     }
-
-
-    //    public RelationalDocument(String document_code, String document_name, String document_path) {
-//        this.document_code = document_code;
-//        this.document_name = document_name;
-//        this.document_path = document_path;
-//    }
 
     public RelationalDocument(String document_id, String document_code, String document_name, String document_path) {
         this.document_id = document_id;

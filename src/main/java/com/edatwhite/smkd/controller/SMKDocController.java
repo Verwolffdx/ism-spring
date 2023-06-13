@@ -12,7 +12,6 @@ import com.edatwhite.smkd.service.file.FilesStorageService;
 import com.ibm.icu.text.Transliterator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.Resource;
-import org.springframework.core.io.ResourceEditor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -20,6 +19,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -79,7 +79,7 @@ public class SMKDocController {
 
     @PostMapping(value = "/create", produces = "application/json", consumes = "multipart/form-data")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ResponseMessage> save(@RequestPart("document") DocumentWithDivisionsDTO document, @RequestPart("file") MultipartFile file, @RequestPart("templates") MultipartFile[] templates) {
+    public ResponseEntity<ResponseMessage> save(@RequestPart("document") DocumentWithDivisionsDTO document, @RequestPart("file") MultipartFile file, @Nullable @RequestPart("templates") MultipartFile[] templates) {
         try {
             SMKDoc doc = new SMKDoc(
                     document.getDocument().getName(),
@@ -128,7 +128,7 @@ public class SMKDocController {
                     )
             );
 
-            List<MultipartFile> templateList = Arrays.asList(templates).stream().collect(Collectors.toList());
+
 
 //            for (int i = 0; i < templateList.size(); i++) {
 //                storageService.save(templateList.get(i));
@@ -142,23 +142,26 @@ public class SMKDocController {
 //                ));
 //            }
 
-            for (int i = 0; i < doc.getAppendix().size(); i++) {
-                if (templateList.size() > i) {
-                    storageService.save(templateList.get(i));
-                    System.out.println("Template Filename " + templateList.get(i).getName());
-                    System.out.println("Origignal Template Filename " + templateList.get(i).getOriginalFilename());
+            if (templates != null) {
+                List<MultipartFile> templateList = Arrays.asList(templates).stream().collect(Collectors.toList());
+                for (int i = 0; i < doc.getAppendix().size(); i++) {
+                    if (templateList.size() > i) {
+                        storageService.save(templateList.get(i));
+                        System.out.println("Template Filename " + templateList.get(i).getName());
+                        System.out.println("Origignal Template Filename " + templateList.get(i).getOriginalFilename());
 
-                    templatesRepository.save(new Templates(
-                            doc.getId(),
-                            doc.getAppendix().get(i),
-                            templateList.get(i).getOriginalFilename()
-                    ));
-                } else {
-                    templatesRepository.save(new Templates(
-                            doc.getId(),
-                            doc.getAppendix().get(i),
-                            "/"
-                    ));
+                        templatesRepository.save(new Templates(
+                                doc.getId(),
+                                doc.getAppendix().get(i),
+                                templateList.get(i).getOriginalFilename()
+                        ));
+                    } else {
+                        templatesRepository.save(new Templates(
+                                doc.getId(),
+                                doc.getAppendix().get(i),
+                                "/"
+                        ));
+                    }
                 }
             }
 
@@ -234,7 +237,7 @@ public class SMKDocController {
     @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
     public Set<Long> getDivisionsForDocument(@PathVariable String id) {
         Set<Long> divisionsForDocument = new HashSet<>();
-        for (FamiliarizationSheet fam : familiarizationSheetRepository.findFamDivisionByDocumentId(id)) {
+        for (FamiliarizationSheet fam : familiarizationSheetRepository.findByDocumentId(id)) {
             divisionsForDocument.add(fam.getFamDivision());
         }
         return divisionsForDocument;
@@ -272,10 +275,10 @@ public class SMKDocController {
     public Set<FamiliarizationForUserDTO> getFamiliarizationSheetForUser(@PathVariable String user_id) {
         Set<FamiliarizationForUserDTO> familiarizationSheetForUser = new HashSet<>();
 
-        Set<FamiliarizationSheet> familiarizationSheets = familiarizationSheetRepository.findByUserIdAndViewedFalse(Long.parseLong(user_id));
+        Set<String> familiarizationSheets = familiarizationSheetRepository.findDistinctByUserIdAndViewedFalse(Long.parseLong(user_id));
 
-        for (FamiliarizationSheet fam : familiarizationSheets) {
-            familiarizationSheetForUser.add(new FamiliarizationForUserDTO(fam.getFam_id(), fam.getDocumentId(), relationalDocumentRepository.findById(fam.getDocumentId()).get().getDocument_code(), relationalDocumentRepository.findById(fam.getDocumentId()).get().getDocument_name()));
+        for (String fam : familiarizationSheets) {
+            familiarizationSheetForUser.add(new FamiliarizationForUserDTO(fam, relationalDocumentRepository.findById(fam).get().getDocument_code(), relationalDocumentRepository.findById(fam).get().getDocument_name()));
         }
 
 
@@ -286,9 +289,11 @@ public class SMKDocController {
     @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
     public ResponseEntity<ResponseMessage> confirmFamiliarization(@RequestParam Long user_id, @RequestParam String document_id) {
         try {
-            FamiliarizationSheet famSheet = familiarizationSheetRepository.findByUserIdAndDocumentId(user_id, document_id);
-            famSheet.setViewed(true);
-            familiarizationSheetRepository.save(famSheet);
+            Set<FamiliarizationSheet> famSheet = familiarizationSheetRepository.findByUserIdAndDocumentId(user_id, document_id);
+            for (FamiliarizationSheet fam : famSheet) {
+                fam.setViewed(true);
+                familiarizationSheetRepository.save(fam);
+            }
 
             String message = "The user with id " + user_id + " has successfully familiarization with document " + document_id + " !";
             System.out.println(message);
@@ -377,7 +382,12 @@ public class SMKDocController {
             }
 
             if (familiarizationSheetRepository.existsFamiliarizationSheetByUserIdAndDocumentId(documentIdRequest.getUser_id(), documentIdRequest.getDocument_id()))
-                documentDTO.setFamiliarize(familiarizationSheetRepository.findByUserIdAndDocumentId(documentIdRequest.getUser_id(), documentIdRequest.getDocument_id()).getViewed());
+                documentDTO.setFamiliarize(
+                        familiarizationSheetRepository.isViewedByUserIdAndDocumentId(
+                                documentIdRequest.getUser_id(),
+                                documentIdRequest.getDocument_id()
+                        )
+                );
 
             return documentDTO;
         } else {
@@ -390,7 +400,12 @@ public class SMKDocController {
             }
 
             if (familiarizationSheetRepository.existsFamiliarizationSheetByUserIdAndDocumentId(documentIdRequest.getUser_id(), documentIdRequest.getDocument_id()))
-                documentDTO.setFamiliarize(familiarizationSheetRepository.findByUserIdAndDocumentId(documentIdRequest.getUser_id(), documentIdRequest.getDocument_id()).getViewed());
+                documentDTO.setFamiliarize(
+                        familiarizationSheetRepository.isViewedByUserIdAndDocumentId(
+                                documentIdRequest.getUser_id(),
+                                documentIdRequest.getDocument_id()
+                        )
+                );
 
             return documentDTO;
         }
@@ -401,6 +416,11 @@ public class SMKDocController {
     @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
     public List<RelationalDocument> getDocumentsByType(@PathVariable String doctype) {
         if (doctype.equals("all")) {
+//            List<RelationalDocumentDTO> relationalDocumentDTO = relationalDocumentRepository.findAllWithoutFavorites();
+//            List<RelationalDocument> relationalDocuments = new ArrayList<>();
+//            for (RelationalDocumentDTO r : relationalDocumentDTO)
+//                relationalDocuments.add(new RelationalDocument(r.getDocument_id(), r.getDocument_code(), r.getDocument_name()));
+//            return relationalDocuments;
             return relationalDocumentRepository.findAll();
         } else {
             return relationalDocumentRepository.findByDoctypeSign(doctype);

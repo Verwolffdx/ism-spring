@@ -13,9 +13,15 @@ public interface FamiliarizationSheetRepository extends JpaRepository<Familiariz
 
     Set<FamiliarizationSheet> findByUserIdAndViewedFalse(Long id);
 
-    FamiliarizationSheet findByUserIdAndDocumentId(Long userId, String documentId);
+    @Query("SELECT DISTINCT documentId FROM FamiliarizationSheet WHERE viewed = false AND userId = ?1 ")
+    Set<String> findDistinctByUserIdAndViewedFalse(Long id);
 
-    Set<FamiliarizationSheet> findFamDivisionByDocumentId(String documentId);
+    Set<FamiliarizationSheet> findByUserIdAndDocumentId(Long userId, String documentId);
+
+    @Query("SELECT DISTINCT viewed FROM FamiliarizationSheet WHERE userId = ?1 AND documentId = ?2")
+    boolean isViewedByUserIdAndDocumentId(Long userId, String documentId);
+
+    Set<FamiliarizationSheet> findByDocumentId(String documentId);
 
     Set<FamiliarizationSheet> findByDocumentIdOrderByFamDivision(String documentId);
 
